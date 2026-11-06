@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneClickServer</title>
+<meta name="token" content="__TOKEN__">
+<link rel="stylesheet" href="/static/common.css">
+</head>
+<body>
+<div class="top">
+  <h1>OneClickServer</h1>
+  <span class="ver" id="ver"></span>
+  <select id="theme" aria-label="明るさ">
+    <option value="auto">明るさ: 自動</option>
+    <option value="light">明るさ: 明るい</option>
+    <option value="dark">明るさ: 暗い</option>
+  </select>
+</div>
+<div class="wrap">
+  <div id="updBanner" class="banner" hidden></div>
+  <div id="migBanner" class="banner" hidden>
+    <b>古い OneClickServerMC / OneClickServerARK のデータが見つかりました。</b>
+    <span id="migBannerText"></span>
+    <div class="btns"><button class="btn main" id="migOpen">引き継ぎをする</button><button class="btn" id="migDismiss">今はしない</button></div>
+  </div>
+
+  <h2>サーバー一覧
+    <button class="btn main" id="bNew">＋ 新しく作る</button>
+  </h2>
+  <div id="pickCard" class="card" hidden>
+    <h3>どのゲームのサーバーを作りますか?</h3>
+    <div class="pick" id="pick"></div>
+  </div>
+  <div id="cards" class="grid"></div>
+  <div id="empty" class="empty" hidden>まだサーバーがありません。右上の「＋ 新しく作る」から、ゲームを選んでください。</div>
+
+  <h2>データの引き継ぎ</h2>
+  <div class="card" id="migCard">
+    <p class="small">統合前の <b>OneClickServerMC</b> や <b>OneClickServerARK</b> で作ったサーバー・ワールド・設定を、ここに引き継ぎます。同じドライブなら一瞬で終わります(移動)。引き継ぐ前に、設定のバックアップを取り、いつでも「元に戻す」ができます。</p>
+    <div class="row">
+      <label>古いソフトのフォルダ(分からなければ空のまま「探す」を押してください)<input id="migPath" placeholder="例: D:\games\OneClickServerARK"></label>
+    </div>
+    <div class="btns"><button class="btn main" id="migScan">古いデータを探す</button><button class="btn" id="migUndo" hidden>直前の引き継ぎを元に戻す</button></div>
+    <div id="migFound" style="margin-top:12px"></div>
+    <div class="outbox" id="migOut" hidden></div>
+  </div>
+</div>
+
+<div class="overlay" id="updOverlay" hidden>
+  <div class="box">
+    <h3 id="updTitle">新しい版があります</h3>
+    <p class="small" id="updText"></p>
+    <div class="outbox" id="updNotes" hidden></div>
+    <div id="updProgress" style="margin:10px 0;font-weight:bold"></div>
+    <div class="btns"><button class="btn main" id="updGo">更新して、開き直す</button></div>
+    <p class="small">サーバー・ワールド・設定は、そのまま残ります。更新の前に、安全のためのチェックをして、失敗したときは元の版に自動で戻ります。</p>
+  </div>
+</div>
+<footer class="legal">OneClickServer は<b>非公式</b>の個人制作ツールで、Mojang・Microsoft・Studio Wildcard・Pocketpair・Re-Logic・Valve・playit.gg とは関係ありません。各ゲームの名前・ロゴは、それぞれの権利者のものです。<a href="/static/notices.html" target="_blank">ライセンスと注意事項</a></footer>
+<div id="toast"></div>
+<script src="/static/home.js"></script>
+</body>
+</html>

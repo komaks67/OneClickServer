@@ -1,0 +1,24 @@
+# 実行中にできるデータ(ワールド・パスワード・設定が入る。絶対に上げない)
+data/
+instance.json
+*.log
+
+# ビルドの結果
+build/
+dist/
+release/
+*.exe
+*.zip
+*.sha256
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# エディタ・OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

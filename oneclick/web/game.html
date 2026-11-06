@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneClickServer</title>
+<meta name="token" content="__TOKEN__">
+<link rel="stylesheet" href="/static/common.css">
+</head>
+<body>
+<div id="app">
+<aside id="tabs">
+  <h1>OneClickServer</h1>
+  <div class="small" id="gameBadge" style="margin:-8px 8px 10px;color:var(--side-text)"></div>
+  <a class="nav" id="goHome" href="/" style="text-decoration:none;display:block">◀ ホーム(サーバー一覧)</a>
+  <button class="nav active" data-p="home">ホーム</button>
+  <button class="nav" data-p="settings">サーバー設定</button>
+  <button class="nav" data-p="mods" id="navMods" hidden>MOD</button>
+  <button class="nav" data-p="friends">友達を呼ぶ</button>
+  <button class="nav" data-p="admin">管理コマンド</button>
+  <button class="nav" data-p="backup">バックアップ</button>
+  <button class="nav" data-p="auto">自動化</button>
+  <button class="nav" data-p="diag">困ったとき診断</button>
+  <button class="nav" data-p="discord">Discord通知</button>
+  <div class="grow"></div>
+  <span id="status" class="status">停止中</span>
+  <button class="nav" data-p="app">ソフトの設定 <span id="updDot" style="color:#ffb020" hidden>● 更新あり</span></button>
+</aside>
+<main>
+
+<section class="page active" id="p-home">
+  <h2>ホーム</h2>
+  <div class="card">
+    <h3>サーバーの操作</h3>
+    <div class="small" id="homeInfo">読み込み中…</div>
+    <div class="small" id="lanInfo" style="margin-top:4px"></div>
+    <div id="statBox" class="statbox" hidden></div>
+    <div id="updBox"></div>
+    <div id="progress" style="margin-top:8px;font-weight:bold"></div>
+    <div class="btns">
+      <button class="btn main" id="bInstall">サーバーを導入・更新</button>
+      <button class="btn main" id="bStart">起動</button>
+      <button class="btn" id="bRestart">再起動</button>
+      <button class="btn danger" id="bStop">停止</button>
+      <button class="btn" id="bCheckUpd">更新を確認</button>
+    </div>
+    <p class="small" id="installNote"></p>
+  </div>
+  <div class="card"><h3>ログ</h3><pre id="log"></pre></div>
+</section>
+
+<section class="page" id="p-settings">
+  <h2>サーバー設定</h2>
+  <div id="settingsBox"></div>
+  <div class="btns"><button class="btn main" id="bSaveSettings">保存する</button></div>
+  <p class="small">設定を変えたあとは、サーバーを再起動すると反映されます。</p>
+</section>
+
+<section class="page" id="p-mods">
+  <h2>MOD</h2>
+  <div class="card">
+    <p class="small"><span id="modLabel"></span>を入力して追加します。<span id="modNote"></span></p>
+    <div class="row"><label>MOD の ID<input id="modId" type="number" placeholder="例: 929578"></label></div>
+    <div class="btns"><button class="btn main" id="bAddMod">追加</button></div>
+    <ul class="list" id="modList"></ul>
+    <div class="btns"><button class="btn main" id="bSaveMods">保存する</button></div>
+  </div>
+</section>
+
+<section class="page" id="p-friends">
+  <h2>友達を呼ぶ</h2>
+  <div class="card">
+    <h3>方法1: playit.gg(おすすめ・ルーターの設定は要りません)</h3>
+    <ol class="steps">
+      <li>下の「playit を起動」を押します。黒い画面が開きます。</li>
+      <li>黒い画面に出る URL をブラウザで開き、アカウントを作って「Claim」します(初回のみ)。</li>
+      <li>playit のサイトで、トンネルを作ります。<span id="tunnelText"></span></li>
+      <li>できあがった公開アドレス(例: xxxx.joinmc.link:12345)を、友達に伝えます。</li>
+      <li>友達は、ゲームのダイレクト接続(IP 接続)で、そのアドレスを入れます。</li>
+    </ol>
+    <div class="btns"><button class="btn main" id="bPlayit">playit を起動</button></div>
+    <p class="small">サーバーを起動したまま、playit の黒い画面も開いたままにしてください。</p>
+    <div class="note" id="playitFaq">
+      <b>playit は、ずっと無料で使えます。</b>
+      <ul>
+        <li>「初回だけ」なのは、<b>アカウント作成とトンネル作り</b>の手順だけです。お金はかかりません。</li>
+        <li>無料プランでは、友達が入る入口(<b>ポート</b>)を<b>4つまで</b>使えます。有料の Premium だと16個までです。</li>
+        <li>サーバー1つにつき入口を1つ使うので、<b>無料でも4つのサーバーまで同時に公開</b>できます。5つ以上は Premium が必要です。</li>
+        <li><b>サーバーごとにポート番号を変えてください。</b>(例: A は 25565、B は 25566)</li>
+        <li>playit のサイトで、サーバーごとに別のトンネルを作り、Local Port をそれぞれのポート番号に合わせます。友達には、サーバーごとに別のアドレスを伝えます。</li>
+        <li>このソフトは playit を<b>1つだけ</b>起動します。同じ playit にトンネルを2つ以上作る形で使います。<span class="muted">(2つ同時の公開は、まだ実機で確認できていません)</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h3>方法2: ルーターのポート開放</h3>
+    <ol class="steps">
+      <li>下のボタンで、Windows ファイアウォールに許可を追加します(「管理者として実行」したときのみ成功します)。</li>
+      <li>ルーターの設定画面で、<b id="routerPorts"></b> を、このパソコンに向けて開けます。</li>
+      <li>自分のグローバル IP アドレスを調べて、友達に「IPアドレス:ポート番号」で伝えます。</li>
+    </ol>
+    <div class="btns"><button class="btn main" id="bFirewall">ファイアウォールの許可を追加</button></div>
+    <p class="small">集合住宅の共用回線などでは、ポート開放ができないことがあります。その場合は方法1を使ってください。遠隔操作用のポートは、外に開けないでください。参加パスワードを付けると、知らない人が入るのを防げます。</p>
+  </div>
+</section>
+
+<section class="page" id="p-admin">
+  <h2>管理コマンド</h2>
+  <div class="card">
+    <p class="small">サーバーが動いているときだけ使えます。</p>
+    <div class="btns" id="adminBtns"></div>
+    <div id="chatBox">
+      <div class="row" style="margin-top:12px">
+        <label>全員にメッセージを送る<input id="chatText" placeholder="例: 10分後に再起動します"></label>
+      </div>
+      <div class="btns"><button class="btn main" id="bChat">送る</button></div>
+    </div>
+    <div class="outbox" id="adminOut">ここに結果が出ます。</div>
+  </div>
+</section>
+
+<section class="page" id="p-backup">
+  <h2>バックアップ</h2>
+  <div class="card">
+    <div class="btns" style="margin-top:0">
+      <button class="btn main" id="bBackup">今すぐバックアップ</button>
+      <button class="btn" id="bOpenBackups">保存先を開く</button>
+    </div>
+    <ul class="list" id="backupList"></ul>
+    <p class="small">復元するときは、サーバーを停止してから「復元」を押してください。</p>
+  </div>
+</section>
+
+<section class="page" id="p-auto">
+  <h2>自動化</h2>
+  <div class="card">
+    <h3>自動バックアップ</h3>
+    <label class="chk"><input type="checkbox" id="auto_backup">サーバーが動いている間、自動でバックアップする</label>
+    <div class="row" style="margin-top:8px">
+      <label>間隔(分)<input id="backup_minutes" type="number" min="5"></label>
+      <label>残す数(古いものから消えます)<input id="backup_keep" type="number" min="1"></label>
+    </div>
+  </div>
+  <div class="card">
+    <h3>自動再起動</h3>
+    <label class="chk"><input type="checkbox" id="auto_restart">決めた時刻に自動で再起動する(1分前に予告を送ります)</label>
+    <label style="margin-top:8px">時刻(カンマ区切り。例: 05:00,17:00)<input id="restart_times"></label>
+    <label class="chk" style="margin-top:8px"><input type="checkbox" id="restart_on_crash">サーバーが落ちたら自動で起動し直す</label>
+  </div>
+  <div class="btns"><button class="btn main" id="bSaveAuto">保存する</button></div>
+</section>
+
+<section class="page" id="p-diag">
+  <h2>困ったとき診断</h2>
+  <div class="card">
+    <p class="small">起動しないときや、友達が入れないときに押してください。前のサーバーの残り、ポート、メモリ、空き容量、ログを調べて、原因を日本語で表示します。</p>
+    <div class="btns" style="margin-top:0"><button class="btn main" id="bDiag">診断する</button></div>
+    <div id="diagOut" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<section class="page" id="p-discord">
+  <h2>Discord通知</h2>
+  <div class="card">
+    <p class="small">Discord のサーバー設定で「連携サービス」→「ウェブフック」を作り、URL をここに貼ります。</p>
+    <label>Webhook の URL<input id="discord_webhook" type="password" placeholder="https://discord.com/api/webhooks/…"></label>
+    <div id="evBox" style="margin-top:10px"></div>
+    <div class="btns">
+      <button class="btn main" id="bSaveDiscord">保存する</button>
+      <button class="btn" id="bTestDiscord">テスト通知を送る</button>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="p-app">
+  <h2>ソフトの設定</h2>
+  <div class="card">
+    <h3>ソフトの更新</h3>
+    <div class="small" id="verInfo">読み込み中…</div>
+    <p class="small">新しい版が出ると、ソフトを開いたときに知らせて、自動で更新します。更新しても、サーバー・ワールド・設定は消えません。</p>
+    <div class="btns"><button class="btn" id="bUpdCheck">更新を確認</button></div>
+  </div>
+  <div class="card">
+    <h3>明るさ</h3>
+    <div class="row">
+      <label>表示<select id="mode"><option value="auto">自動(Windows の設定に合わせる)</option><option value="light">明るい</option><option value="dark">暗い</option></select></label>
+    </div>
+  </div>
+  <div class="card">
+    <h3>フォルダ</h3>
+    <div class="btns" style="margin-top:0">
+      <button class="btn" id="bOpenData">データの場所を開く</button>
+      <button class="btn" id="bOpenServer">サーバーの場所を開く</button>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+<div id="helpPop" hidden></div>
+<div id="toast"></div>
+<script src="/static/game.js"></script>
+</body>
+</html>

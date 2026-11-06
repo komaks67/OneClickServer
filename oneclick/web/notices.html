@@ -1,0 +1,25 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>ライセンスと注意事項 — OneClickServer</title>
+<link rel="stylesheet" href="/static/common.css"></head><body><main style="max-width:820px;margin:24px auto;padding:0 16px;line-height:1.9">
+<h1>ライセンスと注意事項</h1>
+<h2>非公式ツールです</h2>
+<p>OneClickServer は個人が作った非公式のツールです。Minecraft(Mojang / Microsoft)、ARK(Studio Wildcard)、Palworld(Pocketpair)、Terraria(Re-Logic)、Steam(Valve)、playit.gg の各社とは関係がなく、承認も受けていません。名前・ロゴは各権利者のものです。</p>
+<h2>このソフトが外から取得するもの</h2>
+<ul>
+<li><b>SteamCMD</b>(Valve): ARK・Palworld のサーバーを入れるときに、Valve の配布元から取得します。Valve の利用条件が適用されます。</li>
+<li><b>Terraria サーバー</b>: terraria.org の公式配布 zip を取得します。</li>
+<li><b>Minecraft サーバー / Fabric / Forge など</b>: 各公式の配布元から取得します。Minecraft サーバーの利用には、Minecraft の EULA への同意が必要です。</li>
+<li><b>playit.gg エージェント</b>(playit-cloud 製。ライセンスは配布元に従います): GitHub の公式リリースから、公表されている SHA-256 と一致したものだけを使います。playit.gg のサービスにも、独自の利用規約があります。</li>
+</ul>
+<h2>同梱している部品</h2>
+<ul>
+<li><b>pywebview</b>(BSD-3-Clause) / <b>psutil</b>(BSD-3-Clause) / <b>pythonnet</b>(MIT) / <b>PyInstaller</b>(GPL-2.0 例外つき。作った exe は自由に配布できます) / <b>Python</b>(PSF License)</li>
+</ul>
+<h2>データと安全</h2>
+<ul>
+<li>設定・ワールド・バックアップは、すべてこのソフトのフォルダの <code>data</code> に保存されます。あなたのデータを外部へ送ることはありません(更新の確認と、ゲーム・MOD の配布元からの取得を除く)。</li>
+<li>管理者パスワードなどは、設定ファイルに<b>平文</b>で保存されます。<code>data</code> フォルダを他の人に渡さないでください。</li>
+<li>遠隔操作用のポート(RCON / REST)は、外に開けないでください。ファイアウォールの許可は、ゲーム用のポートだけに付けます。</li>
+<li>自動更新は、配布元が公表した SHA-256 と一致したファイルだけを入れ、失敗したら元の版に戻します。</li>
+</ul>
+<p>無保証です。大事なワールドは、定期的にバックアップを取ってください。</p>
+</main></body></html>

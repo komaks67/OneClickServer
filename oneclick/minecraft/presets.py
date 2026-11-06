@@ -1,0 +1,56 @@
+"""おすすめMODの組み合わせ（Modrinth のMODの名前＝slug）。
+このサーバーで使えないMODは、画面に出さずに飛ばす（マイクラの版・種類でちがうため）。"""
+
+PRESETS = [
+    {"id": "light", "title": "🚀 まず入れたい・軽くする", "for": "どのサーバーにもおすすめ",
+     "desc": "動きをなめらかにして、読み込みを速くします。見た目はほとんど変わりません。",
+     "mods": [
+         {"slug": "sodium", "note": "描画を軽くする（Fabric系）"},
+         {"slug": "embeddium", "note": "描画を軽くする（NeoForge・Forge用）"},
+         {"slug": "lithium", "note": "サーバーの処理を軽くする"},
+         {"slug": "ferrite-core", "note": "メモリの使いすぎをへらす"},
+         {"slug": "modernfix", "note": "起動と動作を速くする"},
+         {"slug": "immediatelyfast", "note": "表示を速くする"},
+         {"slug": "entityculling", "note": "見えない生き物の処理を止める"},
+     ]},
+    {"id": "build", "title": "🏗 建築を楽しむ", "for": "みんなで街づくり",
+     "desc": "建築がはかどる道具と、かざりのブロックを足します。",
+     "mods": [
+         {"slug": "chipped", "note": "ブロックの種類がふえる"},
+         {"slug": "supplementaries", "note": "便利でおしゃれなブロック"},
+         {"slug": "handcrafted", "note": "家具をふやす"},
+         {"slug": "worldedit", "note": "広い範囲を一気に作る"},
+         {"slug": "waystones", "note": "ワープできる石"},
+         {"slug": "jei", "note": "アイテムとレシピを調べる"},
+     ]},
+    {"id": "adventure", "title": "⚔ 冒険・探検", "for": "ダンジョンと新しい世界",
+     "desc": "探検する場所と、戦う楽しみをふやします。",
+     "mods": [
+         {"slug": "yungs-better-dungeons", "note": "ダンジョンが豪華になる"},
+         {"slug": "yungs-better-mineshafts", "note": "廃坑が豪華になる"},
+         {"slug": "terralith", "note": "地形がきれいになる"},
+         {"slug": "artifacts", "note": "宝物（アーティファクト）がふえる"},
+         {"slug": "xaeros-minimap", "note": "ミニマップ"},
+         {"slug": "xaeros-world-map", "note": "ワールドマップ"},
+         {"slug": "jei", "note": "アイテムとレシピを調べる"},
+     ]},
+    {"id": "tech", "title": "⚙ 工業・機械", "for": "自動化で遊ぶ",
+     "desc": "機械で資源を自動化する、人気の組み合わせです。",
+     "mods": [
+         {"slug": "create", "note": "歯車と機械（とても人気）"},
+         {"slug": "jei", "note": "アイテムとレシピを調べる"},
+         {"slug": "toms-storage", "note": "倉庫をまとめて使う"},
+         {"slug": "jade", "note": "見ているものの名前を出す"},
+         {"slug": "appleskin", "note": "満腹度が見やすくなる"},
+     ]},
+    {"id": "easy", "title": "🎮 気軽に遊ぶ（はじめての人向け）", "for": "MODに慣れていない友達と",
+     "desc": "遊びやすくするMODだけです。ゲームのルールは、ほとんど変わりません。",
+     "mods": [
+         {"slug": "jade", "note": "見ているものの名前を出す"},
+         {"slug": "appleskin", "note": "満腹度が見やすくなる"},
+         {"slug": "mouse-tweaks", "note": "アイテムの移動が楽になる"},
+         {"slug": "carry-on", "note": "ブロックや動物を持ち運べる"},
+         {"slug": "veinminer", "note": "鉱石をまとめて掘る"},
+         {"slug": "xaeros-minimap", "note": "ミニマップ"},
+     ]},
+]
