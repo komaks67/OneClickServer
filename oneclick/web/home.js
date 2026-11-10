@@ -25,13 +25,20 @@ function el(tag, cls, text) {
   return e;
 }
 
-// 公式アイコン(web/icons/<key>.png)があれば出し、無ければ文字のマークにする
+// ゲームのマーク(文字は使わず、かんたんな線の絵)。公式アイコン(web/icons/<key>.png)があれば、そちらを使う
+const GLYPH = {
+  minecraft: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>',
+  ark: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M6 20c-1-5 0-11 3-16M12 21c-1-6 0-12 3-17M18 20c0-5 1-9 3-12"/></svg>',
+  palworld: '<svg viewBox="0 0 24 24" fill="#fff"><circle cx="6.5" cy="11" r="2.2"/><circle cx="10" cy="6.5" r="2.2"/><circle cx="14.5" cy="6.5" r="2.2"/><circle cx="18" cy="11" r="2.2"/><path d="M12 12c-3 0-5.5 3-5.5 5.2 0 1.8 1.6 2.3 3 2 1-.2 1.7-.5 2.5-.5s1.5.3 2.5.5c1.4.3 3-.2 3-2C17.5 15 15 12 12 12z"/></svg>',
+  terraria: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3l6 8h-3l4 6H5l4-6H6z"/><path d="M12 17v4"/></svg>'
+};
 function makeIcon(key, badge) {
-  const d = el("div", "badge", badge);
+  const d = el("div", "badge");
   d.dataset.game = key;
+  d.innerHTML = GLYPH[key.startsWith("ark") ? "ark" : key] || "";
   const img = new Image();
   img.alt = ""; img.className = "gicon";
-  img.onload = () => { d.textContent = ""; d.classList.add("hasimg"); d.append(img); };
+  img.onload = () => { d.innerHTML = ""; d.classList.add("hasimg"); d.append(img); };
   img.src = "/static/icons/" + encodeURIComponent(key) + ".png";
   return d;
 }
@@ -182,6 +189,21 @@ async function autoDetect() {
   } catch (e) { /* 見つからなくてもよい */ }
 }
 
+async function loadApp() {
+  try {
+    const a = await post("get_app_settings");
+    $("appResident").checked = a.resident; $("appResident").disabled = !a.resident_available;
+    if (!a.resident_available) $("appResNote").textContent = "この環境では、常駐は使えません(Windows の配布版で使えます)。";
+    $("appWinStart").checked = a.windows_start; $("appWinStart").disabled = !a.windows_start_available;
+  } catch (e) { /* 設定が読めなくても、ほかは使える */ }
+}
+$("appResident").onchange = async () => {
+  try { await post("set_app_settings", {resident: $("appResident").checked}); toast("保存しました"); } catch (e) { toast(e.message); loadApp(); }
+};
+$("appWinStart").onchange = async () => {
+  try { await post("set_app_settings", {windows_start: $("appWinStart").checked}); toast("保存しました"); } catch (e) { toast(e.message); loadApp(); }
+};
+loadApp();
 $("bNew").onclick = () => { $("pickCard").hidden = !$("pickCard").hidden; };
 $("theme").onchange = async () => {
   try { await post("set_theme", {theme: $("theme").value}); applyTheme($("theme").value); } catch (e) { toast(e.message); }

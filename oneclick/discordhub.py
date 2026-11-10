@@ -130,6 +130,86 @@ def post(sid: str, title: str, desc: str = "", kind: str = "info", fields=None):
     threading.Thread(target=work, daemon=True).start()
 
 
+def post_alert(title: str, desc: str = "", kind: str = "bad"):
+    """パネルを置いたチャンネルに、PC 全体のお知らせ(ディスク・重さ)を出す。"""
+    b, ch = _bot, cfg().get("channel")
+    if not (b and ch):
+        return
+    embed = discordbot.card(title, desc, kind, None, footer="OneClickServer")
+
+    def work():
+        try:
+            b.send(ch, embed=embed)
+        except discordbot.DiscordError as e:
+            print(f"⚠ Discord に警告を書けませんでした: {e}", flush=True)
+    threading.Thread(target=work, daemon=True).start()
+
+
+# ---- 「いま誰がいるか」を、1枚のカードで書きかえる(入った・出たのたびに通知を増やさない)
+_presence: dict = {}          # sid -> {"names": set, "recent": [(時刻, 名前, 入/出)], "timer": Timer}
+_PRESENCE_WAIT = 3.0          # 続けて入退出しても、3秒まとめて1回だけ書きかえる
+
+
+def presence_enabled(sid: str) -> bool:
+    return bool(_bot and (_panels().get(sid) or {}).get("message"))
+
+
+def presence_card(sid: str, names, recent) -> dict:
+    names = sorted(set(names), key=str.lower)
+    desc = ("、".join(names) + f"\n**いま {len(names)} 人**") if names else "**いま 0 人**(だれもいません)"
+    fields = []
+    if recent:
+        fields.append(("さいきん", "\n".join(f"`{t}` {n} が{'入りました' if k == 'in' else '出ました'}"
+                                           for t, n, k in recent[-6:][::-1]), False))
+    return discordbot.card("👥 いま遊んでいる人", desc, "ok" if names else "stop", fields, footer=_name(sid))
+
+
+def presence_event(sid: str, name: str | None, joined: bool | None, names=None):
+    """入った(True)・出た(False)・全員いなくなった(None) を受け取り、カードを書きかえる予約をする。"""
+    if not presence_enabled(sid):
+        return
+    import time as _t
+    with _lock:
+        st = _presence.setdefault(sid, {"names": set(), "recent": [], "timer": None})
+        if names is not None:
+            st["names"] = set(names)
+        if joined is True and name:
+            st["names"].add(name)
+            st["recent"].append((_t.strftime("%H:%M"), name, "in"))
+        elif joined is False and name:
+            st["names"].discard(name)
+            st["recent"].append((_t.strftime("%H:%M"), name, "out"))
+        elif joined is None:
+            st["names"].clear()
+        st["recent"] = st["recent"][-20:]
+        if st["timer"]:
+            st["timer"].cancel()
+        st["timer"] = threading.Timer(_PRESENCE_WAIT, _presence_flush, args=(sid,))
+        st["timer"].daemon = True
+        st["timer"].start()
+
+
+def _presence_flush(sid: str):
+    b = _bot
+    panel = _panels().get(sid) or {}
+    st = _presence.get(sid)
+    if not (b and st and panel.get("message")):
+        return
+    ch = panel.get("thread") or panel["channel"]
+    embed = presence_card(sid, st["names"], st["recent"])
+    try:
+        mid = st.get("message")
+        if mid:
+            try:
+                b.edit_message(ch, mid, embed=embed)
+                return
+            except discordbot.DiscordError:
+                pass                          # 消されていたら、作りなおす
+        st["message"] = b.send(ch, embed=embed).get("id")
+    except discordbot.DiscordError as e:
+        _console(sid, f"⚠ Discord に書き込めませんでした: {e}")
+
+
 def _console(sid: str, text: str):
     """そのサーバーのログ画面に一行出す。"""
     try:
@@ -145,6 +225,8 @@ def _console(sid: str, text: str):
 def mc_state_changed(id: str, state: str, r):
     """マイクラの状態が変わったとき(minecraft/api.py から呼ばれる)。"""
     sid = "mc:" + id
+    if state in ("stopped", "starting"):
+        presence_event(sid, None, None)
     if _last.get(id) == state:        # 人が入った・出たときにも呼ばれるので、本当に変わったときだけ知らせる
         return
     _last[id] = state
@@ -365,10 +447,11 @@ def bot_get() -> dict:
     return {"token_set": bool(c.get("token")), "channel": c.get("channel") or "", "users": list(c.get("users") or []),
             "status": _bot.status if _bot else ("止まっています（トークンが入っていません）" if not c.get("token") else "止まっています"),
             "ok": bool(_bot and _bot.ok), "name": _bot.user if _bot else "",
+            "alerts": __import__("oneclick.sysmon", fromlist=["settings"]).settings(),
             "servers": [{**s, "panel": bool((pan.get(s["sid"]) or {}).get("message"))} for s in servers()]}
 
 
-def bot_set(token=None, channel=None, users=None) -> dict:
+def bot_set(token=None, channel=None, users=None, alerts=None) -> dict:
     c = dict(cfg())
     if token is not None:
         token = str(token).strip()
@@ -394,6 +477,16 @@ def bot_set(token=None, channel=None, users=None) -> dict:
                 raise HubError(f"「{u}」は、ユーザーID（数字）にも、ユーザー名にも見えません。")
             clean.append(u if _ID.match(u) else u.lower())
         c["users"] = clean[:30]
+    if alerts is not None:
+        if not isinstance(alerts, dict):
+            raise HubError("警告の設定がおかしいです。")
+        try:
+            c["alerts"] = {"on": bool(alerts.get("on", True)),
+                           "disk_gb": max(1, min(2000, int(float(alerts.get("disk_gb", 10))))),
+                           "cpu": max(50, min(100, int(float(alerts.get("cpu", 90))))),
+                           "mem": max(50, min(100, int(float(alerts.get("mem", 90)))))}
+        except (TypeError, ValueError):
+            raise HubError("警告の数字は、数字で入れてください。")
     _save_cfg(c)
     restart()
     return bot_get()

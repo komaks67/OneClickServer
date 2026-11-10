@@ -93,6 +93,8 @@ def main():
     try:
         from oneclick import discordhub
         discordhub.restart()          # Discord のボット(ホーム画面で設定した人だけ)
+        from oneclick import sysmon
+        sysmon.start()                # ディスクの空き・PC の重さの見張り(Discord に出す)
     except Exception as e:  # noqa: BLE001
         print(f"Discord のボットを始められませんでした: {e}", flush=True)
 
@@ -134,6 +136,38 @@ def main():
     threading.Thread(target=startup_update_check, daemon=True).start()
 
     started = time.time()
+    from oneclick import tray as tray_mod
+    state = {"tray": None, "quit": False}
+
+    def resident_wanted() -> bool:
+        return bool(sh.get_setting("resident", True)) and tray_mod.available()
+
+    def open_screen():
+        """トレイから画面を開く(別のプロセスで開く。動いているこのソフトにつながる)。"""
+        import subprocess
+        from oneclick import runtime
+        try:
+            flags = 0x08000000 | 0x00000008 if sys.platform.startswith("win") else 0
+            subprocess.Popen(runtime.launch_command(), creationflags=flags, close_fds=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:  # noqa: BLE001
+            print(f"画面を開けませんでした: {e}", flush=True)
+
+    def sync_tray():
+        want = resident_wanted()
+        if want and not state["tray"]:
+            try:
+                state["tray"] = tray_mod.Tray(
+                    open_screen, lambda: state.update(quit=True),
+                    lambda: "動いているサーバー: あり" if registry.any_running() else "動いているサーバー: なし",
+                    lambda: not registry.any_running()).start()
+            except Exception as e:  # noqa: BLE001
+                print(f"トレイのアイコンを出せませんでした: {e}", flush=True)
+        elif not want and state["tray"]:
+            state["tray"].stop()
+            state["tray"] = None
+
+    sync_tray()
     if auto:
         ids = mc_api.autostart_servers()
         print(f"PC起動時の自動起動: {ids}", flush=True)
@@ -141,10 +175,17 @@ def main():
         url = sh.home_url() + ("go/minecraft" + join if join else "")
         if not open_window(url):
             webbrowser.open(url)
+        if state["tray"]:
+            state["tray"].notify("窓を閉じても、裏で動いています。完全に終わるときは、このアイコンを右クリックして「終了」。")
 
-    # 画面が閉じられて、サーバーも作業も動いていなければ、自動で終わる
+    # 画面が閉じられて、サーバーも作業も動いていなければ、自動で終わる(「常駐」がONのときは、終わらない)
     while True:
         time.sleep(5)
+        sync_tray()
+        if state["quit"]:
+            break
+        if state["tray"]:
+            continue
         last = max(sh.last_ping, mc_web.last_ping)
         idle = time.time() - (last or started)
         if registry.any_running():
@@ -153,6 +194,8 @@ def main():
             break
         if not last and time.time() - started > 600:
             break
+    if state["tray"]:
+        state["tray"].stop()
     cleanup()
 
 

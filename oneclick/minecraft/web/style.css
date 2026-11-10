@@ -1151,3 +1151,56 @@ html .page > h1:first-child { display: table; }
 .bstep { border: 1px solid var(--line, #555c6b); border-radius: 12px; padding: 14px 16px; background: var(--panel, rgba(128,128,128,.06)); }
 .bstep > h3 { margin: 0 0 6px; font-size: 1.02rem; }
 .bstep select, .bstep input[type=text], .bstep input[type=password] { max-width: 100%; }
+
+/* =====================================================================
+   3.3 の新しい見た目(B案): 「シンプル」の見た目を、ホームと同じ
+   ミニマルな色・丸いボタン・やわらかい影にそろえる(明るい / ブラック)
+   ===================================================================== */
+html[data-style="simple"] {
+  --bg: #0f1113; --side-bg: #0b0d0f; --panel: #17191c; --panel-2: #1c1f23; --panel-3: #2a2e33; --slot: #1c1f23;
+  --edge: rgba(255,255,255,.06); --line: #262a2f; --bone: #f2f2ef; --muted: #8d9096; --faint: #6a6d73;
+  --btn: #2a2e33; --btn-hover: #343940; --btn-text: #f2f2ef; --accent: #22a559; --accent-hover: #1c8f4c;
+  --side-text: #e6e6e2; --side-muted: #8d9096; --side-hover: rgba(255,255,255,.06); --side-current: rgba(242,242,239,.10);
+  --pri: #f2f2ef; --pri-text: #101214;
+  --radius: 18px; --radius-sm: 12px;
+  --card: 0 0 0 1px #262a2f, 0 14px 34px rgba(0,0,0,.45);
+}
+html[data-style="simple"][data-theme="light"] {
+  --bg: #f6f5f2; --side-bg: #ffffff; --panel: #ffffff; --panel-2: #faf9f6; --panel-3: #ecebe6; --slot: #f1f0ec;
+  --edge: rgba(0,0,0,.06); --line: #e6e4dd; --bone: #171717; --muted: #6f6f6a; --faint: #8a8a85;
+  --btn: #ecebe6; --btn-hover: #e2e0d8; --btn-text: #171717; --accent: #22a559; --accent-hover: #1c8f4c;
+  --side-text: #171717; --side-muted: #6f6f6a; --side-hover: rgba(0,0,0,.05); --side-current: rgba(0,0,0,.07);
+  --pri: #171717; --pri-text: #ffffff;
+  --card: 0 1px 0 rgba(0,0,0,.05), 0 12px 30px rgba(0,0,0,.07);
+}
+@media (prefers-color-scheme: light) {
+  html[data-style="simple"]:not([data-theme]), html[data-style="simple"][data-theme="auto"] {
+    --bg: #f6f5f2; --side-bg: #ffffff; --panel: #ffffff; --panel-2: #faf9f6; --panel-3: #ecebe6; --slot: #f1f0ec;
+    --edge: rgba(0,0,0,.06); --line: #e6e4dd; --bone: #171717; --muted: #6f6f6a; --faint: #8a8a85;
+    --btn: #ecebe6; --btn-hover: #e2e0d8; --btn-text: #171717; --accent: #22a559; --accent-hover: #1c8f4c;
+    --side-text: #171717; --side-muted: #6f6f6a; --side-hover: rgba(0,0,0,.05); --side-current: rgba(0,0,0,.07);
+    --pri: #171717; --pri-text: #ffffff;
+    --card: 0 1px 0 rgba(0,0,0,.05), 0 12px 30px rgba(0,0,0,.07);
+  }
+}
+html[data-style="simple"] .btn { border-radius: 999px; box-shadow: none; padding-left: 18px; padding-right: 18px; }
+html[data-style="simple"] .btn:hover { box-shadow: none; opacity: .9; }
+html[data-style="simple"] .btn.primary, html[data-style="simple"] .btn.big.primary, html[data-style="simple"] .btn.sm.primary,
+html[data-style="simple"] .btn.go { background: var(--pri); color: var(--pri-text); }
+html[data-style="simple"] .btn.primary:hover, html[data-style="simple"] .btn.big.primary:hover, html[data-style="simple"] .btn.go:hover { background: var(--pri); opacity: .88; }
+html[data-style="simple"] .panel, html[data-style="simple"] .tab-body, html[data-style="simple"] .srv-head,
+html[data-style="simple"] .guide-card, html[data-style="simple"] .choice, html[data-style="simple"] .modal,
+html[data-style="simple"] .pgroup, html[data-style="simple"] .mod { border-radius: 22px; }
+html[data-style="simple"] #side { border-right: 1px solid var(--line); }
+html[data-style="simple"] .srv, html[data-style="simple"] .side-btn { border-radius: 999px; }
+html[data-style="simple"] .srv[aria-current="true"], html[data-style="simple"] .side-btn[aria-current="true"] { box-shadow: none; background: var(--side-current); font-weight: 700; }
+html[data-style="simple"] .tab[aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--bone); }
+html[data-style="simple"] .switch input:checked + span, html[data-style="simple"] .steps > li::before,
+html[data-style="simple"] .wstep.now i, html[data-style="simple"] .wstep.done i { background: var(--bone); color: var(--bg); }
+html[data-style="simple"] input[type=text], html[data-style="simple"] input[type=number], html[data-style="simple"] input[type=search],
+html[data-style="simple"] input[type=password], html[data-style="simple"] select, html[data-style="simple"] textarea { border-radius: 12px; }
+
+/* 「ホームへ戻る」: 左のメニューの一番上に入れる(画面の右下に浮かせない) */
+.homelink { display: flex; align-items: center; gap: 6px; margin: 4px 4px 10px; padding: 9px 16px; border-radius: 999px;
+  background: var(--panel-3); color: var(--bone); font: 600 13px/1 var(--ui); text-decoration: none; }
+.homelink:hover { opacity: .88; }

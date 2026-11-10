@@ -19,7 +19,7 @@ a = Analysis(
     binaries=extra_bins,
     datas=[("oneclick/web", "oneclick/web"),
            ("oneclick/minecraft/web", "oneclick/minecraft/web")] + extra_datas,
-    hiddenimports=hidden + ["winreg"],
+    hiddenimports=hidden + ["winreg", "pystray._win32", "PIL.Image", "PIL.ImageDraw"],
     excludes=["tkinter", "unittest", "pydoc_data", "test"],
     noarchive=False,
 )

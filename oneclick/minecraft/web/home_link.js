@@ -1,16 +1,21 @@
-/* 統合版: どの画面からでも「ホーム(サーバー一覧)」へ戻れる小さなボタン */
+/* 統合版: どの画面からでも「ホーム(サーバー一覧)」へ戻れるボタン。
+   左のメニューの一番上に入れる(以前のように画面の右下に浮かせないので、ほかの表示と被らない)。
+   メニューは画面の切り替えで描き直されるので、消えたら入れ直す。 */
 (function () {
   var m = document.querySelector('meta[name="home-url"]');
   var url = m && m.content;
   if (!url || url.indexOf("__") === 0) return;
-  var a = document.createElement("a");
-  a.href = url;
-  a.textContent = "\u25C0 ホーム(サーバー一覧)";
-  a.setAttribute("aria-label", "OneClickServer のホームへ戻る");
-  a.style.cssText = "position:fixed;right:14px;bottom:14px;z-index:9999;padding:9px 16px;border-radius:99px;" +
-    "background:#1f2a36;color:#fff;font:13px/1 system-ui,'Yu Gothic UI',sans-serif;text-decoration:none;" +
-    "box-shadow:0 4px 14px rgba(0,0,0,.35);opacity:.92";
-  a.onmouseenter = function () { a.style.opacity = "1"; };
-  a.onmouseleave = function () { a.style.opacity = ".92"; };
-  document.body.appendChild(a);
+  var side = document.getElementById("side");
+  if (!side) return;
+  function put() {
+    if (side.querySelector(".homelink")) return;
+    var a = document.createElement("a");
+    a.className = "homelink";
+    a.href = url;
+    a.textContent = "\u2039 ホームへ";
+    a.setAttribute("aria-label", "OneClickServer のホームへ戻る");
+    side.insertBefore(a, side.firstChild);
+  }
+  put();
+  new MutationObserver(put).observe(side, { childList: true });
 })();

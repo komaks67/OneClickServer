@@ -49,6 +49,14 @@
         <div class="btns"><button class="btn" id="bTest">つながるかテスト</button></div>
         <div class="small" id="bRes" style="margin:8px 0"></div>
         ${servers}</section>
+      <section class="bstep"><h3>⑥ PCの見張り(ディスクの空き・重さ)</h3>
+        <p class="small">PCが危ないときだけ、パネルを置いたチャンネルに知らせます。同じお知らせは<b>1時間に1回</b>まで。直ったときは、1回だけ「もとに戻りました」と出ます。</p>
+        <label class="chk"><input type="checkbox" id="aOn" ${d.alerts.on ? "checked" : ""}>警告を出す</label>
+        <div class="row">
+          <label>ディスクの空きが、この GB より少ない<input type="number" id="aDisk" min="1" max="2000" value="${esc(d.alerts.disk_gb)}"></label>
+          <label>CPU が、この % 以上(5分続いたとき)<input type="number" id="aCpu" min="50" max="100" value="${esc(d.alerts.cpu)}"></label>
+          <label>メモリが、この % 以上<input type="number" id="aMem" min="50" max="100" value="${esc(d.alerts.mem)}"></label></div>
+        <div class="btns"><button class="btn main" id="bSaveAl">保存する</button></div></section>
       <p class="small">トークンは、ボットを自由に動かせる鍵です。人に見せないでください(このPCの中だけに、暗号化して保存します)。決めた人以外がボタンを押しても、動きません。</p>`;
     const again = (ms = 800) => setTimeout(render, ms);
     const sel = q("#bChSel", body), note = q("#bChNote", body), res = q("#bRes", body);
@@ -84,6 +92,13 @@
     };
     q("#bSaveUs", body).onclick = async () => {
       try { await api("bot_set", {users: q("#bUs", body).value}); toast("保存しました"); again(); } catch (e) { fail(e); }
+    };
+    q("#bSaveAl", body).onclick = async () => {
+      try {
+        await api("bot_set", {alerts: {on: q("#aOn", body).checked, disk_gb: q("#aDisk", body).value,
+                                       cpu: q("#aCpu", body).value, mem: q("#aMem", body).value}});
+        toast("保存しました"); again();
+      } catch (e) { fail(e); }
     };
     q("#bTest", body).onclick = async ev => {
       const b = ev.currentTarget; b.disabled = true; res.textContent = "調べています…";

@@ -339,6 +339,14 @@ class Bot:
             body["components"] = components
         return rest("POST", f"/channels/{channel}/messages", self.token, body)
 
+    def edit_message(self, channel: str, message: str, embed: dict | None = None, text: str = "") -> dict:
+        body = {"allowed_mentions": {"parse": []}}
+        if text:
+            body["content"] = text[:1900]
+        if embed:
+            body["embeds"] = [embed]
+        return rest("PATCH", f"/channels/{channel}/messages/{message}", self.token, body)
+
     def make_thread(self, channel: str, message: str, name: str) -> dict:
         return rest("POST", f"/channels/{channel}/messages/{message}/threads", self.token,
                     {"name": name[:90], "auto_archive_duration": 10080})

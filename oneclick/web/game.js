@@ -185,6 +185,7 @@ function render(s) {
   $("bRestart").disabled = !!s.busy || !s.running;
   $("bStop").disabled = !!s.busy || !s.running;
   $("bBackup").disabled = !!s.busy;
+  $("bPrune").disabled = !!s.busy || s.backups.length <= 1;
   $("bPlayit").textContent = s.playit ? "playit を止める" : "playit を起動";
   $("bPlayit").disabled = !!s.busy;
   const lg = $("log"); const atEnd = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 20;
@@ -337,6 +338,7 @@ async function init() {
   $("bStop").onclick = () => { if (confirm("サーバーを停止します。よろしいですか?")) doCall(api.stop()); };
   $("bRestart").onclick = () => { if (confirm("サーバーを再起動します。よろしいですか?")) doCall(api.restart()); };
   $("bBackup").onclick = () => doCall(api.backup());
+  $("bPrune").onclick = () => { if (confirm("いちばん新しい1つだけ残して、ほかのバックアップを全部消します。\n消したものは戻せません。よろしいですか?")) doCall(api.prune_backups()); };
   $("bOpenBackups").onclick = () => doCall(api.open_folder("backups"));
   $("bOpenData").onclick = () => doCall(api.open_folder("data"));
   $("bOpenServer").onclick = () => doCall(api.open_folder("server"));

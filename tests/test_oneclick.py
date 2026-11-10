@@ -234,6 +234,82 @@ class BackupTests(unittest.TestCase):
         self.assertLessEqual(len(m.list_backups()), 2)
         self.assertEqual(m.busy, "")
 
+    def test_prune_keeps_only_newest(self):
+        m = self.make()
+        for i in range(4):
+            (m.backup_dir / f"backup_2026010{i}_000000.zip").write_bytes(b"PK" * 10)
+        r = m.prune_backups()
+        self.assertTrue(r["ok"])
+        self.assertEqual([b["name"] for b in m.list_backups()], ["backup_20260103_000000.zip"])
+        self.assertIn("3個", r["message"])
+
+    def test_prune_refuses_while_busy(self):
+        m = self.make()
+        for i in range(3):
+            (m.backup_dir / f"backup_2026010{i}_000000.zip").write_bytes(b"PK")
+        m.busy = "バックアップ"
+        self.assertFalse(m.prune_backups()["ok"])
+        self.assertEqual(len(m.list_backups()), 3)
+
+
+class SysmonTests(unittest.TestCase):
+    CFG = {"on": True, "disk_gb": 10, "cpu": 90, "mem": 90}
+
+    def setUp(self):
+        from oneclick import sysmon
+        self.sm = sysmon
+        sysmon._state.clear()
+
+    def test_disk_warns_once_per_hour_then_recovers(self):
+        ev = self.sm.evaluate
+        self.assertEqual(ev({"disk_gb": 50}, self.CFG, 0), [])
+        w = ev({"disk_gb": 5}, self.CFG, 100)
+        self.assertEqual([x[:2] for x in w], [("disk", "warn")])
+        self.assertEqual(ev({"disk_gb": 5}, self.CFG, 160), [])                 # 続けて出さない
+        self.assertEqual(len(ev({"disk_gb": 5}, self.CFG, 100 + 3601)), 1)      # 1時間たったらもう一度
+        r = ev({"disk_gb": 50}, self.CFG, 4000)
+        self.assertEqual([x[:2] for x in r], [("disk", "recover")])
+        self.assertEqual(ev({"disk_gb": 50}, self.CFG, 4060), [])               # 復旧は1回だけ
+
+    def test_cpu_needs_five_minutes(self):
+        ev = self.sm.evaluate
+        self.assertEqual(ev({"cpu": 99}, self.CFG, 0), [])
+        self.assertEqual(ev({"cpu": 99}, self.CFG, 200), [])
+        self.assertEqual(len(ev({"cpu": 99}, self.CFG, 301)), 1)
+        self.sm._state.clear()
+        ev({"cpu": 99}, self.CFG, 0)
+        ev({"cpu": 10}, self.CFG, 100)                                          # 途中で下がったら数え直し
+        self.assertEqual(ev({"cpu": 99}, self.CFG, 301), [])
+
+    def test_real_measurements_work_here(self):
+        self.assertGreater(self.sm.disk_free_gb("."), 0)
+        m = self.sm.mem_percent()
+        self.assertTrue(m is None or 0 <= m <= 100)
+
+
+class PresenceTests(unittest.TestCase):
+    def test_card_lists_names_and_count(self):
+        from oneclick import discordhub
+        e = discordhub.presence_card("mc:a", {"はな", "たろう"}, [("21:03", "たろう", "in")])
+        self.assertIn("いま 2 人", e["description"])
+        self.assertIn("たろう が入りました", e["fields"][0]["value"])
+        e0 = discordhub.presence_card("mc:a", set(), [])
+        self.assertIn("いま 0 人", e0["description"])
+
+
+class TrayTests(unittest.TestCase):
+    def test_not_available_off_windows(self):
+        from oneclick import tray
+        if not sys.platform.startswith("win"):
+            self.assertFalse(tray.available())
+
+    def test_app_settings_roundtrip(self):
+        from oneclick import shell as shell_mod
+        sh = shell_mod.Shell()
+        self.assertTrue(sh.get_app_settings()["resident"])         # 初期値は ON
+        self.assertFalse(sh.set_app_settings(resident=False)["resident"])
+        self.assertFalse(shell_mod.Shell().get_app_settings()["resident"])   # 保存されている
+
 
 class SchedulerTests(unittest.TestCase):
     def test_crash_loop_stops(self):

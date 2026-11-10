@@ -18,6 +18,8 @@
   </select>
 </div>
 <div class="wrap">
+  <h1 class="hero">ボタン1つで、<br>みんなのサーバー。</h1>
+  <p class="lead">遊びたいゲームを選んでください。</p>
   <div id="updBanner" class="banner" hidden></div>
   <div id="migBanner" class="banner" hidden>
     <b>古い OneClickServerMC / OneClickServerARK のデータが見つかりました。</b>
@@ -41,6 +43,13 @@
   <div class="card" id="botCard" hidden>
     <p class="small">Discord のチャンネルに<b>「▶ 起動」「■ 停止」「📊 状態」のボタン</b>を置いて、押すだけでサーバーを操作できます。<b>マイクラ・ARK・Palworld・Terraria のどれでも使え、ボットは1つだけ</b>で大丈夫です。起動・停止・落ちたときのお知らせは、<b>カード</b>で、パネルのスレッドに出ます。<b>このソフトとPCが動いている間だけ</b>使えます。</p>
     <div id="botBody"></div>
+  </div>
+
+  <h2>このソフトの動き</h2>
+  <div class="card" id="appCard">
+    <label class="chk"><input type="checkbox" id="appResident"><span>窓を閉じても、裏で動き続ける(<b>常駐</b>・時計の近くのアイコンに残る)</span></label>
+    <p class="small" id="appResNote">Discord のボタンで起動したいときは、これをONにしておいてください。完全に終わらせるときは、アイコンを右クリックして「終了」を押します(サーバーが動いているときは、先に止めてください)。</p>
+    <label class="chk"><input type="checkbox" id="appWinStart"><span>Windows を起動したら、自動でこのソフトを始める(窓は出ません)</span></label>
   </div>
 
   <h2>データの引き継ぎ</h2>

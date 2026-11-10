@@ -3056,6 +3056,46 @@ def _online_text(id, add=None, drop=None) -> str:
     return f"今いる人（{len(names)}人）: " + "、".join(sorted(names, key=str.lower))
 
 
+_join_batch: dict[str, dict] = {}
+JOIN_BATCH_SECONDS = 30
+
+
+def _join_event(id, name, joined):
+    """入った・出たを、通知の連投にしない。
+    ボットのパネルがあれば「いま遊んでいる人」の1枚のカードを書きかえるだけ。
+    ウェブフックだけの人は、30秒ぶんをまとめて1通にする。"""
+    try:
+        from .. import discordhub
+        r = runners.get(id)
+        discordhub.presence_event("mc:" + id, name, joined, names=set(r.players) if r else None)
+        if discordhub.presence_enabled("mc:" + id):
+            return
+    except Exception:  # noqa: BLE001
+        traceback.print_exc()
+    p = _prof(id)
+    if not (settings.get("discord_webhook") and "join" in p.get("discord_events", DISCORD_DEFAULT)):
+        return
+    with _lock_join:
+        b = _join_batch.setdefault(id, {"lines": [], "timer": None})
+        b["lines"].append(f"{'👋' if joined else '🚪'} {name} が{'入りました' if joined else '出ました'}")
+        if not b["timer"]:
+            b["timer"] = threading.Timer(JOIN_BATCH_SECONDS, _join_flush, args=(id,))
+            b["timer"].daemon = True
+            b["timer"].start()
+
+
+_lock_join = threading.Lock()
+
+
+def _join_flush(id):
+    with _lock_join:
+        b = _join_batch.pop(id, None)
+    if not b or not b["lines"]:
+        return
+    n = len(b["lines"])
+    _notify(id, "join", "👥 入った・出た" + (f"({n}件)" if n > 1 else ""), "\n".join(b["lines"][-15:]) + "\n" + _online_text(id))
+
+
 def _watch_line(id, line):
     if "logged in with entity id" in line:
         m = watch.LOGIN_RE.search(line)
@@ -3070,14 +3110,14 @@ def _watch_line(id, line):
         m = watch.JOIN_RE.search(line)
         if m:
             _play(id).join(m.group(1))
-            _notify(id, "join", f"👋 {m.group(1)} が入りました", _online_text(id, add=m.group(1)))
+            _join_event(id, m.group(1), True)
             _send_rules(id, m.group(1))
         return False
     if " left the game" in line:
         m = watch.LEFT_RE.search(line)
         if m:
             _play(id).leave(m.group(1))
-            _notify(id, "join", f"🚪 {m.group(1)} が出ました", _online_text(id, drop=m.group(1)))
+            _join_event(id, m.group(1), False)
         return False
     ev = watch.parse_reject(line)
     if ev:
@@ -3644,6 +3684,28 @@ def backup_now(id):
         path = r.backup() if r else server.make_backup(p, "manual")
         return {"file": os.path.basename(path)}
     return start_job("バックアップしています", work)
+
+
+def backup_prune(id):
+    """いちばん新しいバックアップ1つだけ残して、あとは消す(ディスクの空きを作るため)。"""
+    p = _prof(id)
+    files = server.list_backups(p)
+    if len(files) <= 1:
+        return {"removed": 0, "freed_mb": 0.0, "kept": os.path.basename(files[0]) if files else ""}
+    newest = max(files, key=lambda f: (server.backup_time(f) or os.path.getmtime(f), os.path.getmtime(f)))
+    removed, freed = 0, 0
+    for f in files:
+        if f == newest:
+            continue
+        try:
+            size = os.path.getsize(f)
+            os.remove(f)
+            removed += 1
+            freed += size
+        except OSError:
+            pass
+    admin.audit(p.dir, "古いバックアップを整理", f"{removed}個を削除・最新の1つを残した")
+    return {"removed": removed, "freed_mb": round(freed / 1048576, 1), "kept": os.path.basename(newest)}
 
 
 def backup_restore(id, file):

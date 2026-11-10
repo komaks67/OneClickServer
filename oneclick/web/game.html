@@ -12,7 +12,7 @@
 <aside id="tabs">
   <h1>OneClickServer</h1>
   <div class="small" id="gameBadge" style="margin:-8px 8px 10px;color:var(--side-text)"></div>
-  <a class="nav" id="goHome" href="/" style="text-decoration:none;display:block">◀ ホーム(サーバー一覧)</a>
+  <a class="nav" id="goHome" href="/" style="text-decoration:none;display:block">◀ ホームへ</a>
   <button class="nav active" data-p="home">ホーム</button>
   <button class="nav" data-p="settings">サーバー設定</button>
   <button class="nav" data-p="mods" id="navMods" hidden>MOD</button>
@@ -125,6 +125,7 @@
     <div class="btns" style="margin-top:0">
       <button class="btn main" id="bBackup">今すぐバックアップ</button>
       <button class="btn" id="bOpenBackups">保存先を開く</button>
+      <button class="btn danger" id="bPrune">最新の1つ以外を消す</button>
     </div>
     <ul class="list" id="backupList"></ul>
     <p class="small">復元するときは、サーバーを停止してから「復元」を押してください。</p>

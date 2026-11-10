@@ -29,7 +29,7 @@ GAME_ACTIONS = {
     "start": "start", "stop": "stop", "restart": "restart", "backup": "backup", "restore": "restore",
     "open_folder": "open_folder", "add_firewall": "add_firewall", "diagnose": "diagnose",
     "playit_toggle": "playit_toggle", "test_discord": "test_discord", "admin_command": "admin_command",
-    "status_detail": "status_detail", "check_updates": "check_updates",
+    "status_detail": "status_detail", "prune_backups": "prune_backups", "check_updates": "check_updates",
 }
 
 
@@ -93,6 +93,23 @@ class Shell:
             "windows": os.name == "nt",
             "notice": self._pop_notice(),
         }
+
+    def get_app_settings(self):
+        from . import tray
+        from .minecraft import autostart
+        return {"resident": bool(self.get_setting("resident", True)), "resident_available": tray.available(),
+                "windows_start": autostart.is_enabled(), "windows_start_available": autostart.supported()}
+
+    def set_app_settings(self, resident=None, windows_start=None):
+        from .minecraft import autostart
+        if resident is not None:
+            self.set_setting("resident", bool(resident))
+        if windows_start is not None:
+            try:
+                autostart.set_enabled(bool(windows_start))
+            except Exception as e:  # noqa: BLE001
+                raise UserError(f"Windows の起動設定を変えられませんでした: {e}")
+        return self.get_app_settings()
 
     def _pop_notice(self):
         n, self.notice = self.notice, ""
@@ -198,8 +215,8 @@ class Shell:
     def bot_get(self):
         return self._hub(discordhub.bot_get)
 
-    def bot_set(self, token=None, channel=None, users=None):
-        return self._hub(discordhub.bot_set, token, channel, users)
+    def bot_set(self, token=None, channel=None, users=None, alerts=None):
+        return self._hub(discordhub.bot_set, token, channel, users, alerts)
 
     def bot_invite(self):
         return self._hub(discordhub.bot_invite)
@@ -222,7 +239,7 @@ class Shell:
         webbrowser.open(url)
         return {"ok": True}
 
-    HOME_ACTIONS = {"bot_get", "bot_set", "bot_invite", "bot_channels", "bot_test", "bot_panel", "open_url", "get_home", "create_game", "get_theme", "set_theme", "migration_scan", "migration_run", "migration_undo",
+    HOME_ACTIONS = {"get_app_settings", "set_app_settings", "bot_get", "bot_set", "bot_invite", "bot_channels", "bot_test", "bot_panel", "open_url", "get_home", "create_game", "get_theme", "set_theme", "migration_scan", "migration_run", "migration_undo",
                     "migration_dismiss", "update_check", "update_apply"}
 
 

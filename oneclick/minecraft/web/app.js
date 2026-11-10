@@ -2358,7 +2358,13 @@ async function tabBackup(body, s) {
     <table class="tbl" style="margin-top:8px"><thead><tr><th>日時</th><th>種類</th><th>大きさ</th><th></th></tr></thead><tbody>
       ${b.backups.map((x) => `<tr><td>${esc(x.when)}</td><td>${esc(x.kind)}</td><td>${x.size_mb}MB</td><td style="text-align:right"><button class="btn sm" data-restore="${esc(x.file)}">この時点に戻す</button></td></tr>`).join("") || `<tr><td colspan="4" class="faint">まだありません</td></tr>`}
     </tbody></table>
-    <button class="btn sm ghost" data-open style="margin-top:10px">バックアップのフォルダを開く</button>`;
+    <div class="row" style="margin-top:10px"><button class="btn sm ghost" data-open>バックアップのフォルダを開く</button>
+      <button class="btn sm danger" data-prune ${b.backups.length > 1 ? "" : "disabled"}>最新の1つ以外を消す</button></div>`;
+  $("[data-prune]", body).onclick = async () => {
+    const old = b.backups.slice(1), mb = old.reduce((a, x) => a + x.size_mb, 0).toFixed(1);
+    if (!(await ask("古いバックアップを消す", `<p>いちばん新しい1つだけ残して、<b>${old.length}個（約${mb}MB）</b>を消します。</p><ul class="small"><li><b>消したものは戻せません</b></li><li>「1時間前」「昨日」への巻き戻しも、できなくなります</li></ul>`, "消す", { danger: true }))) return;
+    try { const r = await api("backup_prune", { id: s.id }); toast(`${r.removed}個を消しました（${r.freed_mb}MB あきました）`); tabBackup(body, s); } catch (e) { fail(e); }
+  };
   $("[data-now]", body).onclick = async () => {
     try { const r = await runJob(api("backup_now", { id: s.id }), "バックアップしています"); toast("保存しました: " + r.file); tabBackup(body, s); } catch (e) { if (!e.shown) fail(e); }
   };

@@ -578,6 +578,26 @@ class BaseManager:
         finally:
             self.busy = ""
 
+    def prune_backups(self):
+        """いちばん新しいバックアップ1つだけ残して、あとは消す。"""
+        with self._lock:
+            if self.busy:
+                return {"ok": False, "message": f"「{self.busy}」の作業中です。"}
+            files = sorted(self.backup_dir.glob("backup_*.zip"), key=lambda f: f.name, reverse=True)
+            if len(files) <= 1:
+                return {"ok": True, "message": "消すバックアップはありません。"}
+            removed, freed = 0, 0
+            for f in files[1:]:
+                try:
+                    size = f.stat().st_size
+                    f.unlink()
+                    removed += 1
+                    freed += size
+                except OSError:
+                    pass
+        self.log(f"古いバックアップを{removed}個消しました(最新の{files[0].name}は残しました)。")
+        return {"ok": True, "message": f"{removed}個を消しました({round(freed / 1048576, 1)} MB あきました)。"}
+
     def _restore_target(self, member: str) -> str:
         """zip の中の名前を、サーバーのフォルダの中のどこに戻すか(古い形式の対応用に上書きできる)。"""
         return member
