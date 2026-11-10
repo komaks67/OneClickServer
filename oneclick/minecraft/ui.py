@@ -75,7 +75,7 @@ def fmt_num(n: int) -> str:
 
 # =====================================================================
 class CheckTree(ttk.Treeview):
-    """先頭に ■（選んだ）/ □（選んでない）の列がある一覧。クリックで切りかえ。
+    """先頭に ■（選んだ）/ □（選んでない）の列がある一覧。クリックで切り替え。
 
     toggle_any=True なら行のどこをクリックしても切りかわる。
     False なら左の ■□ の列をクリックした時だけ切りかわる。
@@ -532,7 +532,7 @@ class App(tk.Tk):
         pw.add(top, weight=3)
         bar = ttk.Frame(top)
         bar.pack(fill="x")
-        ttk.Label(bar, text="MODをさがす", style="H.TLabel").pack(side="left")
+        ttk.Label(bar, text="MODを探す", style="H.TLabel").pack(side="left")
         self.q_var = tk.StringVar()
         e = ttk.Entry(bar, textvariable=self.q_var, width=24)
         e.pack(side="left", padx=6)
@@ -583,7 +583,7 @@ class App(tk.Tk):
         for label, cmd in [("✅ ON にする", lambda: self.enable_mods(True)),
                            ("⛔ OFF にする", lambda: self.enable_mods(False)),
                            ("🗑 外す", self.remove_mods),
-                           ("⟳ 更新をさがす", self.check_updates), ("📁 ファイルから追加", self.add_jar_files),
+                           ("⟳ 更新を探す", self.check_updates), ("📁 ファイルから追加", self.add_jar_files),
                            ("📂 modsフォルダ", lambda: open_folder(self.profile.mods_dir)),
                            ("再読み込み", self.load_mods_installed)]:
             ttk.Button(ib, text=label, command=cmd).pack(side="left", padx=(0, 4))
@@ -757,7 +757,7 @@ class App(tk.Tk):
                 return
             UpdateWindow(self, p, ups)
         self.bg(lambda: modrinth.check_updates(ModList(p.dir), p.get("mc"), p.get("loader")), done,
-                busy="更新をさがしています…")
+                busy="更新を探しています…")
 
     def add_jar_files(self):
         files = filedialog.askopenfilenames(parent=self, title="MODファイル（.jar）を選ぶ",
@@ -776,7 +776,7 @@ class App(tk.Tk):
         ttk.Label(t, text="下の A〜C のどれか1つを使い、出てきたアドレスを一番下の欄に入れてください。",
                   style="Sub.TLabel").pack(anchor="w", pady=(0, 8))
 
-        a = ttk.LabelFrame(t, text=" A. playit.gg（いちばんおすすめ・ルーター設定なし・無料） ", padding=10)
+        a = ttk.LabelFrame(t, text=" A. playit.gg（一番おすすめ・ルーター設定なし・無料） ", padding=10)
         a.pack(fill="x", pady=4)
         ttk.Label(a, justify="left", text=(
             "① 「playit を起動」を押す → 黒い画面が開きます\n"
@@ -864,7 +864,7 @@ class App(tk.Tk):
             messagebox.showinfo(APP_TITLE, f"ポート {port} を開けました！\n友達に伝えるアドレス: {addr}\n\n"
                                            "※ つながらない時は A の playit.gg を使ってください。", parent=self)
         self.bg(lambda: network.upnp_open(port, lambda m: self.ui(lambda: self.set_status(m))), done,
-                busy="ルーターをさがしています…")
+                busy="ルーターを探しています…")
 
     def upnp_close(self):
         port = self._port()
@@ -909,7 +909,7 @@ class App(tk.Tk):
         ttk.Button(hb, text="選べるMODを外す", command=lambda: self.packlist.set_all(False)).pack(side="right", padx=4)
         ttk.Label(left, justify="left", style="Sub.TLabel", wraplength=480, text=(
             "🔒 必須 … サーバーに入るために全員に必要（外せません）\n"
-            "■ / □ 選べる … 軽量化・ミニマップなど、なくても入れるMOD。行をクリックで切りかえ。"
+            "■ / □ 選べる … 軽量化・ミニマップなど、なくても入れるMOD。行をクリックで切り替え。"
             "友達も入れるか選べます")).pack(anchor="w")
 
         box = ttk.LabelFrame(body, text=" 友達に送るメッセージ ", padding=8)
@@ -1098,7 +1098,7 @@ class App(tk.Tk):
         b = ttk.Frame(t)
         b.pack(fill="x", pady=6)
         ttk.Button(b, text="💾 今すぐバックアップ", style="Big.TButton", command=self.backup_now).pack(side="left")
-        ttk.Button(b, text="⏪ 選んだ時点にもどす", command=self.restore).pack(side="left", padx=6)
+        ttk.Button(b, text="⏪ 選んだ時点に戻す", command=self.restore).pack(side="left", padx=6)
         ttk.Button(b, text="📂 フォルダを開く",
                    command=lambda: open_folder(server.backups_dir(self.profile))).pack(side="left")
 
@@ -1138,12 +1138,12 @@ class App(tk.Tk):
         if self.runner().running:
             messagebox.showinfo(APP_TITLE, "先にサーバーを止めてください。", parent=self)
             return
-        if not messagebox.askyesno(APP_TITLE, "ワールドをこの時点にもどしますか？\n"
+        if not messagebox.askyesno(APP_TITLE, "ワールドをこの時点に戻しますか？\n"
                                               "（今のワールドも念のため backups フォルダに残します）", parent=self):
             return
         self.bg(lambda: server.restore_backup(self.profile, sel[0]),
-                lambda _: (self.load_backups(), messagebox.showinfo(APP_TITLE, "もどしました！", parent=self)),
-                busy="もどしています…")
+                lambda _: (self.load_backups(), messagebox.showinfo(APP_TITLE, "戻しました！", parent=self)),
+                busy="戻しています…")
 
     # ================================================================ 設定
     def _build_settings(self):
@@ -1202,7 +1202,7 @@ class App(tk.Tk):
             return
         if not messagebox.askyesno(APP_TITLE, f"「{p.name}」を削除しますか？\nワールドやバックアップも全部消えます。", parent=self):
             return
-        if not messagebox.askyesno(APP_TITLE, "本当に消しますか？（元にもどせません）", parent=self):
+        if not messagebox.askyesno(APP_TITLE, "本当に消しますか？（元に戻せません）", parent=self):
             return
         import shutil
         shutil.rmtree(p.dir, ignore_errors=True)
@@ -1369,7 +1369,7 @@ class NewServerWindow(tk.Toplevel):
         self.list = CheckTree(r, [("title", "名前", 170), ("ok", "使える種類", 140), ("dl", "人気", 55),
                                   ("desc", "説明", 260)], on_toggle=self._toggled, selectmode="browse")
         self.list.pack(fill="both", expand=True, pady=4)
-        ttk.Label(r, text="行をクリックで ■（入れる）/ □ を切りかえ。検索しなおしても選んだまま残ります。",
+        ttk.Label(r, text="行をクリックで ■（入れる）/ □ を切り替え。検索しなおしても選んだまま残ります。",
                   style="Sub.TLabel").pack(anchor="w")
 
         self.supported = []
@@ -1856,7 +1856,7 @@ class HelpWindow(tk.Toplevel):
  ・入れない → サーバーが「起動完了」か、ホワイトリストに名前があるか、アドレスが正しいか確認
  ・重い → 「ホーム」のメモリを増やす / 設定の「見える距離」を 6〜8 に下げる
  ・MODを入れたら起動しない → 最後に入れたMODを OFF にして再起動。ログの赤い行がヒントです
- ・ワールドを壊した → 「💾 バックアップ」から元にもどせます
+ ・ワールドを壊した → 「💾 バックアップ」から元に戻せます
 """
 
     def __init__(self, app):

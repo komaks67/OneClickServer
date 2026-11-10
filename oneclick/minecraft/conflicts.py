@@ -279,7 +279,7 @@ def check_server(prof) -> dict:
     for m in metas:
         disp, fn = m["display"], m["file"]
         if m.get("broken"):
-            issues.append(_issue("error", f"{disp} のファイルがこわれています",
+            issues.append(_issue("error", f"{disp} のファイルが壊れています",
                                  "ダウンロードの途中で失敗した可能性があります。",
                                  "一度外して、もう一度入れてください。", {"type": "disable", "path": f"{fd}/{fn}"}, [fn]))
             continue
@@ -294,7 +294,7 @@ def check_server(prof) -> dict:
             for d in missing:
                 issues.append(_issue("error", f"{disp} に必要な前提プラグイン「{d}」がありません",
                                      "前提プラグインがないと、このプラグインは動きません。",
-                                     "下のボタンで前提プラグインをさがして入れられます。",
+                                     "下のボタンで前提プラグインを探して入れられます。",
                                      {"type": "install_dep", "id": d}, [fn]))
             continue
         wrong = False
@@ -323,12 +323,12 @@ def check_server(prof) -> dict:
         if gv and mc and mc not in gv:
             issues.append(_issue("warn", f"{disp} は マイクラ {mc} 用ではありません",
                                  f"このMODのバージョンは {', '.join(gv[-4:])} 用です。",
-                                 "「⟳ 更新をさがす」で合うバージョンに入れ替えてください。", None, [fn]))
+                                 "「⟳ 更新を探す」で合うバージョンに入れ替えてください。", None, [fn]))
         missing = sorted(d for d in m["depends"] - IGNORE_DEPS if d not in present)
         for d in missing:
             issues.append(_issue("error", f"{disp} に必要な前提MOD「{d}」がありません",
                                  "前提MODがないと、サーバーが起動しません。",
-                                 "下のボタンで前提MODをさがして入れられます。",
+                                 "下のボタンで前提MODを探して入れられます。",
                                  {"type": "install_dep", "id": d}, [fn]))
         for b in sorted(m["breaks"]):
             hit = [o for o in metas if o is not m and b in o["ids"]]
@@ -426,7 +426,7 @@ LOG_RULES = [
     (re.compile(r"Mod ID: '([^']+)', Requested by: '([^']+)', Expected range: '([^']*)', Actual version: '([^']+)'", re.I),
      lambda m: _issue("error", f"「{m.group(1)}」のバージョンが合いません",
                       f"「{m.group(2)}」は {m.group(1)} の {m.group(3)} を必要としていますが、入っているのは {m.group(4)} です。",
-                      "「⟳ 更新をさがす」で更新するか、合うバージョンを入れ直してください。")),
+                      "「⟳ 更新を探す」で更新するか、合うバージョンを入れ直してください。")),
     (re.compile(r"Mod '([^']+)' \(([^)]+)\) [^ ]+ is incompatible with (?:any version of )?(?:mod )?'?([^',(]+)", re.I),
      lambda m: _issue("error", f"「{m.group(1)}」と「{m.group(3).strip()}」は一緒に使えません",
                       "MODの作者が「一緒に使えない」と決めている組み合わせです。", "どちらか一方をOFFにしてください。")),
@@ -444,8 +444,8 @@ LOG_RULES = [
                       "「相性チェック」を実行して、遊ぶ人専用のMODをOFFにしてください。")),
     (re.compile(r"Mixin apply for mod ([\w\-]+) failed|Mixin (?:apply|transformation)[^\n]*?failed[^\n]*?(?:from mod|mod) ['(]?([\w\-]+)", re.I),
      lambda m: _issue("error", f"MOD「{m.group(1) or m.group(2)}」がほかのMODとぶつかっています",
-                      "MODがゲームの中身を書きかえようとして失敗しました（相性が悪い組み合わせか、バージョンちがい）。",
-                      f"「{m.group(1) or m.group(2)}」を一度OFFにして起動してみてください。「原因のMODをさがす」も使えます。")),
+                      "MODがゲームの中身を書きかえようとして失敗しました（相性が悪い組み合わせか、バージョン違い）。",
+                      f"「{m.group(1) or m.group(2)}」を一度OFFにして起動してみてください。「原因のMODを探す」も使えます。")),
     (re.compile(r"has been compiled by a more recent version of the Java Runtime \(class file version (\d+)", re.I),
      lambda m: _issue("error", "Java のバージョンが古いです",
                       f"Java {int(m.group(1)) - 44} 以上が必要なMODが入っています。",
@@ -465,38 +465,38 @@ LOG_RULES = [
     (re.compile(r"You need to agree to the EULA", re.I),
      lambda m: _issue("warn", "利用規約（EULA）に同意していません", "最初の起動で同意が必要です。",
                       "「▶ 起動」を押すと同意の確認が出ます。")),
-    # ---- ここから：さらにくわしい原因（クラッシュレポートの中身） ----
+    # ---- ここから：さらに詳しい原因（クラッシュレポートの中身） ----
     (re.compile(r"Mod '([^']+)' \(([^)]+)\) \S+ requires [^\n]*?of '?(Minecraft|Java)'? \(?(?:minecraft|java)\)?,? but only the wrong version is present: ([^!\n]+)", re.I),
      lambda m: _issue("error", f"「{m.group(1)}」はこのマイクラのバージョン用ではありません",
                       f"このMODは別の {m.group(3)} のバージョン用です（今は {m.group(4).strip()}）。",
-                      "「⟳ 更新をさがす」で合うバージョンにするか、OFFにしてください。")),
+                      "「⟳ 更新を探す」で合うバージョンにするか、OFFにしてください。")),
     (re.compile(r"Mod '([^']+)' \(([^)]+)\) \S+ requires [^\n]*?of '?(?!Minecraft|Java)([^',(]+?)'? \((?!minecraft\b|java\b)([\w\-]+)\),? but only the wrong version is present: ([^!\n]+)", re.I),
      lambda m: _issue("error", f"「{m.group(1)}」が使う「{m.group(3)}」のバージョンが合いません",
                       f"入っている {m.group(3)} は {m.group(5).strip()} ですが、別のバージョンが必要です。",
-                      f"「{m.group(3)}」を更新してください（「⟳ 更新をさがす」）。", {"type": "install_dep", "id": m.group(4)})),
+                      f"「{m.group(3)}」を更新してください（「⟳ 更新を探す」）。", {"type": "install_dep", "id": m.group(4)})),
     (re.compile(r"Suspected Mods?:\s*\n?\s*([^\n(]+?)\s*\(([\w\-]+)\)", re.I),
      lambda m: _issue("error", f"原因は「{m.group(1).strip()}」の可能性が高いです",
                       "マイクラのクラッシュレポートに「あやしいMOD」として書かれています。",
                       f"「{m.group(1).strip()}」を更新するか、一度OFFにして起動してみてください。")),
     (re.compile(r"-- Entity being ticked --.*?Entity Type: ([\w:.]+).*?Entity's Exact location: ([\-\d.]+), ([\-\d.]+), ([\-\d.]+)", re.I | re.S),
      lambda m: _issue("error", f"生き物（{m.group(1)}）の処理でサーバーが落ちました",
-                      f"場所: X={float(m.group(2)):.0f} Y={float(m.group(3)):.0f} Z={float(m.group(4)):.0f} にいる {m.group(1)} がこわれているか、MODの不具合です。",
-                      "その場所の近くに行かないようにするか、一つ前のバックアップにもどしてください。MODが原因なら更新でなおることがあります。")),
+                      f"場所: X={float(m.group(2)):.0f} Y={float(m.group(3)):.0f} Z={float(m.group(4)):.0f} にいる {m.group(1)} が壊れているか、MODの不具合です。",
+                      "その場所の近くに行かないようにするか、一つ前のバックアップに戻してください。MODが原因なら更新でなおることがあります。")),
     (re.compile(r"-- Block entity being ticked --.*?Name: ([\w:./]+).*?Block location: World: \((-?\d+),\s*(-?\d+),\s*(-?\d+)\)", re.I | re.S),
      lambda m: _issue("error", f"ブロック（{m.group(1)}）の処理でサーバーが落ちました",
-                      f"場所: X={m.group(2)} Y={m.group(3)} Z={m.group(4)} の機械・ブロックがこわれているか、MODの不具合です。",
-                      "一つ前のバックアップにもどすか、そのブロックのMODを更新してください。")),
+                      f"場所: X={m.group(2)} Y={m.group(3)} Z={m.group(4)} の機械・ブロックが壊れているか、MODの不具合です。",
+                      "一つ前のバックアップに戻すか、そのブロックのMODを更新してください。")),
     (re.compile(r"A single server tick took ([\d.]+) seconds|Considering it to be crashed, server will forcibly shutdown", re.I),
      lambda m: _issue("error", "サーバーが固まって止まりました（応答なし）",
                       "1回の処理に時間がかかりすぎたので、マイクラが自分でサーバーを止めました。"
                       "大量の生き物・アイテム・機械、地形の生成、MODの不具合が原因になります。",
-                      "「重さ・最適化」タブの「重さの原因さがし」と「ワンクリック最適化」を試してください。")),
+                      "「重さ・最適化」タブの「重さの原因探し」と「ワンクリック最適化」を試してください。")),
     (re.compile(r"(?:Couldn't load chunk|Failed to read chunk|Chunk file at \[[^\]]+\] is in the wrong location|"
                 r"Exception reading [^\n]*\.mca|Failed to load level|Exception reading [^\n]*level\.dat|"
                 r"Corrupt(?:ed)? chunk|RegionFileStorage[^\n]*(?:Exception|Error))", re.I),
-     lambda m: _issue("error", "ワールドのデータがこわれている可能性があります",
+     lambda m: _issue("error", "ワールドのデータが壊れている可能性があります",
                       "ワールドの一部（チャンク）を読み込めませんでした。急に電源が切れた・PCが固まったときなどに起きます。",
-                      "「バックアップ」タブの「ワンクリック巻き戻し」で、こわれる前にもどしてください。")),
+                      "「バックアップ」タブの「ワンクリック巻き戻し」で、壊れる前に戻してください。")),
     (re.compile(r"Could not reserve enough space for (\d+)KB object heap|Invalid maximum heap size|Initial heap size set to a larger value", re.I),
      lambda m: _issue("error", "メモリの設定が大きすぎます",
                       "Java がメモリを確保できませんでした（PCのメモリより多い・古い32ビットの Java など）。",
@@ -515,12 +515,12 @@ LOG_RULES = [
                       "プラグインの古い版を入れるか、サーバーのバージョンを上げてください。")),
     (re.compile(r"Invalid plugin\.yml|InvalidDescriptionException|Could not load '(?:plugins[/\\])?([^']+\.jar)' in folder", re.I),
      lambda m: _issue("error", f"読み込めないプラグインがあります{('（' + m.group(1) + '）') if m.lastindex and m.group(1) else ''}",
-                      "プラグインではないファイル（MODなど）か、こわれたファイルです。",
+                      "プラグインではないファイル（MODなど）か、壊れたファイルです。",
                       "「相性チェック」で見つけて、OFFにしてください。")),
     (re.compile(r"java\.lang\.(NoSuchMethodError|NoSuchFieldError|AbstractMethodError|IncompatibleClassChangeError)[:\s]*'?([\w$./]+)?", re.I),
      lambda m: _issue("error", "MODどうしのバージョンが合っていません",
                       f"あるMODが、ほかのMODの「ない部品」を使おうとしました（{m.group(1)}）。前提MODだけ古い・新しいときによく起きます。",
-                      "「⟳ 更新をさがす」で全部のMODを新しくするか、「原因のMODをさがす」を使ってください。")),
+                      "「⟳ 更新を探す」で全部のMODを新しくするか、「原因のMODを探す」を使ってください。")),
     (re.compile(r"(?:Failed loading config file|Failed to load config|Error loading config|ParsingException|Configuration file [^\n]*? is not correct)[^\n]*?([\w\-./\\]+\.(?:toml|json5?|cfg|yml|yaml|properties))", re.I),
      lambda m: _issue("warn", f"設定ファイル（{os.path.basename(m.group(1))}）の書き方がおかしいです",
                       "手で書きかえた・保存の途中で止まったなどで、設定ファイルが読めませんでした。",
@@ -528,7 +528,7 @@ LOG_RULES = [
     (re.compile(r"java\.lang\.StackOverflowError", re.I),
      lambda m: _issue("error", "MODの処理が止まらなくなりました（StackOverflow）",
                       "MODどうしが呼び合い続けて止まりました。相性が悪い組み合わせのことが多いです。",
-                      "「起動テスト・相性」タブの「原因のMODをさがす」を使ってください。")),
+                      "「起動テスト・相性」タブの「原因のMODを探す」を使ってください。")),
     (re.compile(r"Mixin \[?[^\n\]]*?\.mixins?\.json[^\n\]]*? from mod ([\w\-]+)\]", re.I),
      lambda m: _issue("warn", f"MOD「{m.group(1)}」が関係していそうです",
                       "エラーの記録に、このMODの名前が出ています。",
@@ -539,7 +539,7 @@ LOG_RULES = [
                       "「相性チェック」を実行して原因のMODを探してください。")),
     (re.compile(r"Failed to (?:load|create) mod[^\n]*?['\"]?([\w\-]+)['\"]?", re.I),
      lambda m: _issue("error", f"MOD「{m.group(1)}」の読み込みに失敗しました",
-                      "このMODがこわれているか、バージョンが合っていない可能性があります。",
+                      "このMODが壊れているか、バージョンが合っていない可能性があります。",
                       f"「{m.group(1)}」を一度OFFにして起動してみてください。")),
 ]
 

@@ -3,9 +3,9 @@
 マイクラのサーバーには「--universe（ワールドを置く場所）」という起動のしかたがあるので、
 テスト用の空のフォルダにワールドを作らせて、起動できたらすぐ止めて消す。
 
-起動しなかったときは「原因のMODを自動でさがす」もできる：
+起動しなかったときは「原因のMODを自動で探す」もできる：
 MODを半分ずつOFFにして起動を試し、原因を1つにしぼっていく（二分探索）。
-OFFにしたMODは別のフォルダに一時的に移すだけで、終わったら（失敗・中止でも）必ず元にもどす。
+OFFにしたMODは別のフォルダに一時的に移すだけで、終わったら（失敗・中止でも）必ず元に戻す。
 """
 from __future__ import annotations
 
@@ -98,7 +98,7 @@ def run_once(prof, log=print, cancel: threading.Event | None = None, timeout=900
     return {"ok": ok, "seconds": seconds, "issues": issues, "reason": reason, "tail": lines[-40:]}
 
 
-# ---------------- MODを一時的にどける（必ず元にもどす） ----------------
+# ---------------- MODを一時的にどける（必ず元に戻す） ----------------
 
 def _hold(prof, files: set[str]):
     mods = prof.mods_dir
@@ -111,11 +111,11 @@ def _hold(prof, files: set[str]):
         if os.path.exists(src):
             os.replace(src, os.path.join(hold, f))
             moved.append(f)
-            save_json(journal, moved)  # 1つ動かすたびに記録（途中で落ちてももどせる）
+            save_json(journal, moved)  # 1つ動かすたびに記録（途中で落ちても戻せる）
 
 
 def restore(prof):
-    """どけておいたMODを全部 mods にもどす。ソフトの起動時にも呼ぶ。"""
+    """どけておいたMODを全部 mods に戻す。ソフトの起動時にも呼ぶ。"""
     hold = os.path.join(prof.dir, HOLD_DIR)
     journal = os.path.join(prof.dir, JOURNAL)
     if os.path.isdir(hold):
@@ -132,7 +132,7 @@ def restore(prof):
     shutil.rmtree(os.path.join(prof.dir, TEST_DIR), ignore_errors=True)
 
 
-# ---------------- 原因のMODをさがす ----------------
+# ---------------- 原因のMODを探す ----------------
 
 def _graph(prof):
     """MODファイルごとの「入っているID」と「必要なID」を調べる。"""

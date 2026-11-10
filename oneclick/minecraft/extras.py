@@ -1,4 +1,4 @@
-"""ワールドの点検・サーバーの引っ越し（書き出し／読みこみ）・ひな形。"""
+"""ワールドの点検・サーバーの引っ越し（書き出し／読み込み）・ひな形。"""
 from __future__ import annotations
 
 import gzip
@@ -33,7 +33,7 @@ def _check_chunk(blob: bytes) -> str | None:
         elif c == 1:
             gzip.GzipFile(fileobj=__import__("io").BytesIO(data)).read(1 << 20)
     except Exception:  # noqa: BLE001
-        return "中身が読めない（こわれている）"
+        return "中身が読めない（壊れている）"
     return None
 
 
@@ -87,7 +87,7 @@ def scan_world(world_dir: str, log=lambda s: None) -> dict:
             with gzip.open(lv, "rb") as f:
                 f.read(1 << 20)
         except Exception:  # noqa: BLE001
-            out["problems"].append({"file": "level.dat", "msg": "ワールドの基本データが読めません（こわれている）。level.dat_old があれば、それに入れかえると直ることがあります"})
+            out["problems"].append({"file": "level.dat", "msg": "ワールドの基本データが読めません（壊れている）。level.dat_old があれば、それに入れ替えると直ることがあります"})
     else:
         out["problems"].append({"file": "level.dat", "msg": "ワールドの基本データがありません"})
     roots = [world_dir]
@@ -182,7 +182,7 @@ def inspect_export(zip_path: str) -> dict:
             raise ValueError("このファイルは、このソフトの「引っ越しファイル」ではありません。")
         for n in names:
             if n.startswith(("/", "\\")) or ".." in n.replace("\\", "/").split("/") or ":" in n.split("/")[0]:
-                raise ValueError("ファイルの中に、あぶない場所の指定があったので、やめました。")
+                raise ValueError("ファイルの中に、危ない場所の指定があったので、やめました。")
         d = json.loads(z.read("mcmh.json").decode("utf-8"))
     return {"name": d.get("name") or "サーバー", "mc": d.get("mc"), "loader": d.get("loader")}
 
@@ -195,10 +195,10 @@ def import_server(zip_path: str, dest_dir: str, log=lambda s: None) -> None:
         for i, n in enumerate(members):
             target = os.path.realpath(os.path.join(dest_dir, n))
             if target != base and not target.startswith(base + os.sep):
-                raise ValueError("あぶない場所のファイルがあったので、やめました。")
+                raise ValueError("危ない場所のファイルがあったので、やめました。")
             z.extract(n, dest_dir)
             if i % 200 == 0:
-                log(f"ひらいています… {i + 1}/{len(members)}")
+                log(f"開いています… {i + 1}/{len(members)}")
 
 
 # ---------------------------------------------------------------- ひな形

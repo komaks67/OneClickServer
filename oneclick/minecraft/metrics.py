@@ -244,7 +244,7 @@ def summary(mon: Monitor | None, prof, installed_slugs: set[str]) -> dict:
                 {"type": "install", "ids": [s for s, _n, _d in missing]})
         add("info", "ワールドを事前生成する", "新しい場所を歩くたびに地形を作るのが重さの原因になりがちです。下の「事前生成」で、先に作っておけます。")
     if not advice and samples:
-        add("ok", "軽く動いています", "いまのところ、重さの問題は見つかっていません。")
+        add("ok", "軽く動いています", "いまのところ、重さの問題は見使っていません。")
     return {"tps": tps, "mem": mem, "alloc": alloc, "cpu": cpu, "lags10": len(lags10),
             "players": samples[-1]["players"] if samples else 0, "advice": advice,
             "probe_supported": bool(mon and mon.probe_supported), "samples": samples[-360:]}

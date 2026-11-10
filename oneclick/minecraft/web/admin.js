@@ -17,7 +17,7 @@ async function tabSettings(body, s) {
 
 // ---------------- サーバーの設定（server.properties の全部） ----------------
 async function subProps(root, s) {
-  root.innerHTML = `<div class="empty">読みこんでいます…</div>`;
+  root.innerHTML = `<div class="empty">読み込んでいます…</div>`;
   let d;
   try { d = await api("props_get", { id: s.id }); } catch (e) { root.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   const orig = Object.fromEntries(d.items.map((i) => [i.key, i.value]));
@@ -45,9 +45,9 @@ async function subProps(root, s) {
   root.innerHTML = `
     ${d.first_run ? `<div class="note" style="margin-bottom:14px"><b>まだ一度も起動していません</b>一度起動すると、このバージョンで使えるすべての設定が表示されます。今は主な設定だけ出ています。</div>` : ""}
     ${d.running ? `<div class="note ${d.msmp ? "ok" : ""}" style="margin-bottom:14px"><b>サーバーが動いています</b>${d.msmp ? "「動かしたまま変わる」と書いてある設定は、保存するとすぐ変わります。ほかは再起動で変わります。" : "保存した設定は、再起動すると変わります。"}</div>` : ""}
-    <div class="row" style="margin-bottom:12px"><input type="search" data-q placeholder="設定をさがす（例: 距離、ホワイトリスト、ポート）" style="flex:1;min-width:240px"><button class="btn sm" data-openall>全部ひらく</button></div>
+    <div class="row" style="margin-bottom:12px"><input type="search" data-q placeholder="設定を探す（例: 距離、ホワイトリスト、ポート）" style="flex:1;min-width:240px"><button class="btn sm" data-openall>全部開く</button></div>
     <div data-groups>${groups}</div>
-    <div class="savebar" data-bar hidden><span data-count></span><span class="grow"></span><button class="btn ghost" data-undo>元にもどす</button><button class="btn primary" data-save>保存する</button></div>`;
+    <div class="savebar" data-bar hidden><span data-count></span><span class="grow"></span><button class="btn ghost" data-undo>元に戻す</button><button class="btn primary" data-save>保存する</button></div>`;
   const bar = $("[data-bar]", root);
   const update = () => {
     const n = Object.keys(changes).length;
@@ -73,9 +73,9 @@ async function subProps(root, s) {
   $("[data-undo]", root).onclick = () => subProps(root, s);
   $("[data-save]", root).onclick = async () => {
     const risky = [];
-    if (changes["online-mode"] === "false") risky.push("正規版チェックを OFF にすると、だれでも他人の名前で入れてしまいます。");
-    if (changes["white-list"] === "false") risky.push("ホワイトリストを OFF にすると、アドレスを知っている人ならだれでも入れます。");
-    if (changes["prevent-proxy-connections"] === "true") risky.push("playit や「友達用パックを自動で配る」を使っていると、だれも入れなくなることがあります。");
+    if (changes["online-mode"] === "false") risky.push("正規版チェックを OFF にすると、誰でも他人の名前で入れてしまいます。");
+    if (changes["white-list"] === "false") risky.push("ホワイトリストを OFF にすると、アドレスを知っている人なら誰でも入れます。");
+    if (changes["prevent-proxy-connections"] === "true") risky.push("playit や「友達用パックを自動で配る」を使っていると、誰も入れなくなることがあります。");
     if (risky.length && !(await ask("この設定で大丈夫ですか？", `<ul>${risky.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`, "保存する", { danger: true }))) return;
     try {
       const r = await api("props_set", { id: s.id, values: changes });
@@ -92,7 +92,7 @@ async function subProps(root, s) {
 
 // ---------------- ゲームルール ----------------
 async function subRules(root, s) {
-  root.innerHTML = `<div class="empty">読みこんでいます…</div>`;
+  root.innerHTML = `<div class="empty">読み込んでいます…</div>`;
   let d;
   try { d = await api("gamerules_get", { id: s.id }); } catch (e) { root.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   const head = `<p class="muted" style="margin-top:0">ゲームの決まりごとです。サーバーを動かしたまま変えられて、すぐ反映されます。</p>`;
@@ -108,8 +108,8 @@ async function subRules(root, s) {
   root.innerHTML = head + `
     <div class="panel" style="margin-bottom:16px"><h3>おすすめのセット</h3><div class="row" style="margin-top:10px">${d.presets.map((p) => `<button class="btn" data-preset="${p.i}" title="${esc(p.desc)}">${esc(p.title)}</button>`).join("")}</div>
       <p class="hint">${d.presets.map((p) => `${esc(p.title)}: ${esc(p.desc)}`).join("<br>")}</p></div>
-    <div class="row" style="margin-bottom:12px"><input type="search" data-q placeholder="ルールをさがす（例: 持ち物、朝、火）" style="flex:1"><span class="small muted">${d.via === "msmp" ? "管理用の窓口で読みこみ" : "コンソールで読みこみ"}・${d.rules.length}個</span></div>
-    ${d.rules.length ? groups : `<div class="note warn"><b>ゲームルールを読みこめませんでした</b>サーバーが起動しきってから、もう一度開いてください。</div>`}`;
+    <div class="row" style="margin-bottom:12px"><input type="search" data-q placeholder="ルールを探す（例: 持ち物、朝、火）" style="flex:1"><span class="small muted">${d.via === "msmp" ? "管理用の窓口で読み込み" : "コンソールで読み込み"}・${d.rules.length}個</span></div>
+    ${d.rules.length ? groups : `<div class="note warn"><b>ゲームルールを読み込めませんでした</b>サーバーが起動しきってから、もう一度開いてください。</div>`}`;
   const set = async (key, value, el) => {
     try {
       await api("gamerule_set", { id: s.id, key, value });
@@ -152,7 +152,7 @@ async function subMemory(root, s) {
     <h2>フォルダ</h2>
     <div class="row" style="margin-top:10px"><button class="btn sm" data-of="server">サーバーのフォルダ</button><button class="btn sm" data-of="mods">mods</button><button class="btn sm" data-of="logs">ログ</button><button class="btn sm" data-of="exports">友達用パック</button></div>
     <hr class="sep">
-    <h2>サーバーを消す</h2><p class="muted">ワールド・MOD・バックアップもすべて消えます。元にもどせません。</p>
+    <h2>サーバーを消す</h2><p class="muted">ワールド・MOD・バックアップもすべて消えます。元に戻せません。</p>
     <button class="btn danger" data-del>このサーバーを消す</button>`;
   bindMemory($("[data-mem]", root), inf.memory, S.settings.self_play, async (v) => {
     try { await api("server_set", { id: s.id, profile: { memory_mb: v } }); toast(`メモリを ${gb(v)} にしました（次の起動から）`); refreshState(); } catch (e) { fail(e); }
@@ -170,7 +170,7 @@ async function subMemory(root, s) {
 async function deleteServerFlow(s) {
   if (s.status !== "stopped") { toast("先にサーバーを止めてください"); return; }
   if (!(await ask("サーバーを消す", `<p>「${esc(s.name)}」を消しますか？ワールドもバックアップも全部消えます。</p>`, "消す", { danger: true }))) return;
-  if (!(await ask("本当に消しますか？", "<p>元にもどせません。</p>", "消す", { danger: true }))) return;
+  if (!(await ask("本当に消しますか？", "<p>元に戻せません。</p>", "消す", { danger: true }))) return;
   try {
     await api("server_delete", { id: s.id });
     toast("消しました");
@@ -181,7 +181,7 @@ async function deleteServerFlow(s) {
 
 // ---------------- 自動化・バージョン ----------------
 async function subOps(root, s) {
-  root.innerHTML = `<div class="empty">読みこんでいます…</div>`;
+  root.innerHTML = `<div class="empty">読み込んでいます…</div>`;
   let inf, au, vo;
   try {
     [inf, au] = await Promise.all([api("server_info", { id: s.id }), api("autostart_get")]);
@@ -190,9 +190,9 @@ async function subOps(root, s) {
   root.innerHTML = `
     <h2>自動で止める・自動で起動する</h2>
     <div class="form-grid" style="margin-top:12px">
-      <div class="lbl">だれもいなくなったら止める<div class="hint">PCのメモリ・電気代の節約</div></div>
+      <div class="lbl">誰もいなくなったら止める<div class="hint">PCのメモリ・電気代の節約</div></div>
       <div><select data-astop style="max-width:280px">${[[0, "止めない"], [5, "5分後に止める"], [15, "15分後に止める"], [30, "30分後に止める"], [60, "1時間後に止める"]].map(([v, l]) => `<option value="${v}" ${+inf.auto_stop_min === v ? "selected" : ""}>${l}</option>`).join("")}</select>
-        <div class="hint">だれもいない時間が続いたら、ワールドを保存してサーバーを止めます（事前生成の途中は止めません）。</div></div>
+        <div class="hint">誰もいない時間が続いたら、ワールドを保存してサーバーを止めます（事前生成の途中は止めません）。</div></div>
       <div class="lbl">PCを起動したら、このサーバーも起動</div>
       <div>${au.supported ? `<label class="switch"><input type="checkbox" data-ast ${me.on && au.enabled ? "checked" : ""}><span></span></label>
         <div class="hint">Windows にログインすると、このソフトが画面を出さずに起動して、このサーバーを動かします。止めたいときはこのソフトを開いて「停止」を押します。</div>`
@@ -216,10 +216,10 @@ async function subOps(root, s) {
   renderSchedule($("[data-sched]", root), s);
   const vel = $("[data-ver]", root);
   try { vo = await api("version_options", { id: s.id }); } catch (e) { vel.innerHTML = `<div class="note warn">${esc(e.message)}</div>`; return; }
-  vel.innerHTML = `<p class="muted" style="max-width:76ch">今は <b>マイクラ ${esc(vo.mc)}・${esc(vo.loader_label)}</b> です。ワールドを残したまま新しいバージョンにできます。先にワールドを自動でバックアップし、${modWord(s)}も新しいバージョン用に入れかえます。<b>古いバージョンにはもどせません</b>（ワールドがこわれるため）。</p>
+  vel.innerHTML = `<p class="muted" style="max-width:76ch">今は <b>マイクラ ${esc(vo.mc)}・${esc(vo.loader_label)}</b> です。ワールドを残したまま新しいバージョンにできます。先にワールドを自動でバックアップし、${modWord(s)}も新しいバージョン用に入れ替えます。<b>古いバージョンには戻せません</b>（ワールドが壊れるため）。</p>
     ${vo.newer_loader ? `<div class="note" style="margin:10px 0"><b>${esc(vo.loader_label.split(" ")[0])} の新しい版（${esc(vo.newer_loader)}）があります</b>マイクラのバージョンはそのままで、土台だけ新しくできます（不具合の修正など）。<div style="margin-top:8px"><button class="btn sm" data-vsame>土台を新しくする</button></div></div>` : ""}
     ${vo.candidates.length ? `<div class="row" style="margin-top:10px"><select data-vmc style="max-width:220px">${vo.candidates.map((v) => `<option>${esc(v)}</option>`).join("")}</select><button class="btn" data-vchk>このバージョンにできるか調べる</button></div>`
-      : `<div class="note ok"><b>いちばん新しいバージョンです</b>マイクラ ${esc(vo.mc)} より新しい正式版はまだありません。</div>`}
+      : `<div class="note ok"><b>一番新しいバージョンです</b>マイクラ ${esc(vo.mc)} より新しい正式版はまだありません。</div>`}
     <div data-vplan style="margin-top:12px"></div>`;
   const showPlan = async (mc) => {
     const out = $("[data-vplan]", vel);
@@ -234,7 +234,7 @@ async function subOps(root, s) {
         <div><b style="color:var(--ok-text)">使える${W}（${pl.mods_ok.length}個）</b><ul class="small">${pl.mods_ok.slice(0, 30).map((m) => `<li>${esc(m.title)} ${m.same ? "（そのまま）" : `${esc(m.from || "")} → ${esc(m.to || "")}`}</li>`).join("") || "<li>なし</li>"}</ul></div>
         <div><b style="color:var(--ng-text)">新しいバージョン用がない${W}（${pl.mods_ng.length}個）</b><ul class="small">${pl.mods_ng.map((m) => `<li>${esc(m.title)}</li>`).join("") || "<li>なし</li>"}</ul>
           ${pl.mods_ng.length ? `<p class="hint">これらは OFF にします（消しません）。対応したら「更新」でまた使えます。</p>` : ""}
-          ${pl.manual.length ? `<p class="hint">手で入れた${W}（${pl.manual.map(esc).join("、")}）は自動で入れかえられないので、自分で確認してください。</p>` : ""}</div>
+          ${pl.manual.length ? `<p class="hint">手で入れた${W}（${pl.manual.map(esc).join("、")}）は自動で入れ替えられないので、自分で確認してください。</p>` : ""}</div>
       </div>
       ${pl.mods_ng.length ? `<div class="note warn" style="margin-top:10px"><b>使えなくなる${W}があります</b>その${W}で作ったブロックやアイテムは、ワールドから消えることがあります。</div>` : ""}
       <div class="row" style="margin-top:12px"><button class="btn primary" data-vgo ${s.status === "stopped" ? "" : "disabled"}>バックアップしてから変える</button>${s.status === "stopped" ? "" : '<span class="small muted">先にサーバーを止めてください</span>'}</div></div>`;
@@ -243,7 +243,7 @@ async function subOps(root, s) {
       try {
         const r = await runJob(api("version_change", { id: s.id, mc: pl.mc }), "バージョンを変えています");
         await refreshState();
-        info("バージョンを変えました", `<p>マイクラ ${esc(r.from)} → <b>${esc(r.mc)}</b></p>${r.changed.length ? `<p class="small">入れかえた${W}: ${r.changed.map(esc).join("、")}</p>` : ""}${r.disabled.length ? `<p class="small">OFFにした${W}: ${r.disabled.map(esc).join("、")}</p>` : ""}<p class="small muted">まず「起動テスト」で、ちゃんと起動するか試すのがおすすめです。</p>`);
+        info("バージョンを変えました", `<p>マイクラ ${esc(r.from)} → <b>${esc(r.mc)}</b></p>${r.changed.length ? `<p class="small">入れ替えた${W}: ${r.changed.map(esc).join("、")}</p>` : ""}${r.disabled.length ? `<p class="small">OFFにした${W}: ${r.disabled.map(esc).join("、")}</p>` : ""}<p class="small muted">まず「起動テスト」で、ちゃんと起動するか試すのがおすすめです。</p>`);
         viewServer($("#main"));
       } catch (e) { if (!e.shown) fail(e); }
     };
@@ -259,11 +259,11 @@ async function subNotify(root, s) {
   let d;
   try { d = await api("notify_get", { id: s.id }); } catch (e) { root.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   root.innerHTML = `<h2>Discord に知らせる</h2>
-    <p class="muted" style="max-width:76ch">サーバーの起動・停止・トラブル・あやしいアクセスなどを、Discord のチャンネルに自動で書きこみます。BOT を作る必要はありません（「Webhook」という URL を貼るだけ）。</p>
+    <p class="muted" style="max-width:76ch">サーバーの起動・停止・トラブル・あやしいアクセスなどを、Discord のチャンネルに自動で書き込みます。BOT を作る必要はありません（「Webhook」という URL を貼るだけ）。</p>
     <ol class="small" style="padding-left:1.4em"><li>Discord で、知らせたいチャンネルの ⚙（チャンネルの編集）を開く</li><li>「連携サービス」→「ウェブフック」→「新しいウェブフック」</li><li>「ウェブフックURLをコピー」を押して、下に貼る</li></ol>
     <div class="inline-field" style="max-width:720px;margin-top:8px"><input type="password" data-wh placeholder="${d.webhook_set ? "設定ずみ（変えるときだけ貼る）" : "https://discord.com/api/webhooks/…"}" autocomplete="off">
       <button class="btn primary" data-whsave>保存</button><button class="btn" data-whtest>テスト送信</button>${d.webhook_set ? '<button class="btn ghost" data-whdel>やめる</button>' : ""}</div>
-    <p class="hint">${d.webhook_set ? '<span class="badge ok">設定ずみ</span> ' : ""}Webhook URL を知っている人は、そのチャンネルに書きこめます。人に見せないでください（このPCの中だけに保存します）。すべてのサーバーで同じチャンネルを使います。</p>
+    <p class="hint">${d.webhook_set ? '<span class="badge ok">設定ずみ</span> ' : ""}Webhook URL を知っている人は、そのチャンネルに書き込めます。人に見せないでください（このPCの中だけに保存します）。すべてのサーバーで同じチャンネルを使います。</p>
     ${d.error ? `<div class="note warn"><b>最後の送信に失敗しました</b>${esc(d.error)}</div>` : ""}
     <h3 style="margin-top:16px">Discord に出る名前</h3>
     <div class="inline-field" style="max-width:520px;margin-top:6px"><input type="text" data-whname value="${esc(d.name)}" maxlength="80"><button class="btn" data-whnamesave>保存</button></div>
@@ -272,7 +272,8 @@ async function subNotify(root, s) {
     <hr class="sep">
     <h2>このPCに知らせる（デスクトップ通知）</h2>
     <div class="row" style="margin-top:10px"><label class="switch"><input type="checkbox" data-desk ${d.desktop ? "checked" : ""}><span></span></label>
-      <div><b>サーバーが落ちたとき・あやしいアクセスがあったとき</b><div class="small muted">Windows の右下にお知らせを出します（画面を閉じていても出ます）。</div></div></div>`;
+      <div><b>サーバーが落ちたとき・あやしいアクセスがあったとき</b><div class="small muted">Windows の右下にお知らせを出します（画面を閉じていても出ます）。</div></div></div>
+    <hr class="sep"><div class="note">💬 <b>Discord から操作する</b>設定は、<b>ホーム画面</b>（サーバー一覧のページ）の「Discord から操作する（ボット）」に移りました。マイクラ・ARK・Palworld・Terraria 共通で、ボットは1つだけです。</div>`;
   $("[data-whsave]", root).onclick = async () => {
     const v = $("[data-wh]", root).value.trim();
     if (!v) return toast("Webhook URL を貼ってください", "warn");
@@ -307,7 +308,7 @@ async function subRemote(root, s) {
       d.rcon ? `<div class="row" style="margin-top:8px"><span class="badge">ポート ${esc(d.rcon_port)}</span><span class="small">パスワード:</span><code class="kbd" data-pw>••••••••</code><button class="btn sm" data-showpw>見る</button><button class="btn sm" data-copypw>コピー</button></div><p class="hint">パスワードは自動で作った強いものです。ONにし直すと新しくなります。</p>` : "")}
     ${card("query", "Query（状態の問い合わせ）", d.query, "サーバー一覧サイトや監視ツールが、人数やMOD・バージョンを調べられるようにします。プレイヤーの名前が見えるので、必要なときだけ ON にします。",
       d.query ? `<div class="chips" style="margin-top:8px"><span class="badge">UDP ポート ${esc(d.query_port)}</span></div>` : "")}
-    ${card("jmx", "JMX（処理時間の数字）", d.jmx, "Java の監視ツール（JConsole など）で、1コマの処理時間を見られるようにします。くわしい人向けです。このソフトの「重さ」タブだけなら不要です。")}`;
+    ${card("jmx", "JMX（処理時間の数字）", d.jmx, "Java の監視ツール（JConsole など）で、1コマの処理時間を見られるようにします。詳しい人向けです。このソフトの「重さ」タブだけなら不要です。")}`;
   $$("[data-rk]", root).forEach((el) => (el.onchange = async () => {
     if (el.checked && el.dataset.rk === "rcon" && !(await ask("RCON を ON にする", "<p>パスワードを知った人は、このサーバーを自由に操作できます。RCON のポートはポート開放しないでください。</p>", "ON にする", { danger: true }))) { el.checked = false; return; }
     try { await api("remote_set", { id: s.id, kind: el.dataset.rk, on: el.checked }); toast("変えました（次の起動から）"); subRemote(root, s); } catch (e) { fail(e); el.checked = !el.checked; }
@@ -322,7 +323,7 @@ async function subRemote(root, s) {
 async function subLog(root, s) {
   let d;
   try { d = await api("audit_get", { id: s.id }); } catch (e) { root.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
-  root.innerHTML = `<p class="muted" style="margin-top:0">このソフトで行った管理の操作（設定の変更・BAN・管理コマンドなど）の記録です。だれが何をしたか、あとで確かめられます。</p>
+  root.innerHTML = `<p class="muted" style="margin-top:0">このソフトで行った管理の操作（設定の変更・BAN・管理コマンドなど）の記録です。誰が何をしたか、あとで確かめられます。</p>
     ${d.items.length ? `<table class="tbl"><thead><tr><th style="width:180px">日時</th><th style="width:200px">操作</th><th>内容</th></tr></thead><tbody>
       ${d.items.map((x) => `<tr><td class="small">${esc(x.when)}</td><td>${esc(x.action)}</td><td class="small" style="word-break:break-all">${esc(x.detail)}</td></tr>`).join("")}</tbody></table>`
       : `<div class="empty">まだ記録はありません</div>`}`;
@@ -337,15 +338,15 @@ const ACTION_FIELDS = {
   worldborder: [["size", "大きさ（ブロック）", "number", 10000]],
   say: [["message", "メッセージ", "text"]],
   gamemode: [["mode", "モード", "select", [["survival", "サバイバル"], ["creative", "クリエイティブ"], ["adventure", "アドベンチャー"], ["spectator", "スペクテイター"]]], ["player", "だれ", "player*"]],
-  tp: [["player", "だれを", "player*"], ["target", "だれのところへ", "player"]],
-  give: [["player", "だれに", "player*"], ["item", "アイテムのID（入れると候補が出ます）", "item", "minecraft:diamond"], ["count", "個数", "number", 1]],
-  xp: [["player", "だれに", "player*"], ["amount", "レベル", "number", 5]],
-  heal: [["player", "だれを", "player*"]], clear_effects: [["player", "だれの", "player*"]], spawnpoint: [["player", "だれの", "player"]],
-  kick: [["player", "だれを", "player"], ["reason", "理由（なくてもOK）", "text"]],
-  ban: [["player", "だれを", "player"], ["reason", "理由（なくてもOK）", "text"]],
+  tp: [["player", "誰を", "player*"], ["target", "だれのところへ", "player"]],
+  give: [["player", "誰に", "player*"], ["item", "アイテムのID（入れると候補が出ます）", "item", "minecraft:diamond"], ["count", "個数", "number", 1]],
+  xp: [["player", "誰に", "player*"], ["amount", "レベル", "number", 5]],
+  heal: [["player", "誰を", "player*"]], clear_effects: [["player", "だれの", "player*"]], spawnpoint: [["player", "だれの", "player"]],
+  kick: [["player", "誰を", "player"], ["reason", "理由（なくてもOK）", "text"]],
+  ban: [["player", "誰を", "player"], ["reason", "理由（なくてもOK）", "text"]],
   pardon: [["player", "だれの", "player"]], ban_ip: [["target", "IPアドレス か 名前", "text"], ["reason", "理由", "text"]],
-  pardon_ip: [["target", "IPアドレス", "text"]], op: [["player", "だれを", "player"]], deop: [["player", "だれを", "player"]],
-  whitelist_add: [["player", "だれを", "player"]], whitelist_remove: [["player", "だれを", "player"]],
+  pardon_ip: [["target", "IPアドレス", "text"]], op: [["player", "誰を", "player"]], deop: [["player", "誰を", "player"]],
+  whitelist_add: [["player", "誰を", "player"]], whitelist_remove: [["player", "誰を", "player"]],
 };
 const DANGER_ACTIONS = new Set(["ban", "ban_ip", "op", "kill_items", "reload", "worldborder", "setworldspawn"]);
 
@@ -366,14 +367,14 @@ async function tabCommands(body, s) {
     return `<label class="small">${esc(label)}<input type="${type === "number" ? "number" : "text"}" data-f="${k}" value="${def != null ? esc(def) : ""}" ${type === "number" ? 'style="width:110px"' : ""}></label>`;
   };
   body.innerHTML = `${!d.running ? `<div class="note" style="margin-bottom:14px"><b>サーバーを起動すると使えます</b></div>` : ""}
-    <p class="muted" style="margin-top:0">よく使う管理コマンドを、入力欄つきのボタンにしました。実行すると、実際に送ったコマンドと、サーバーの返事が下に出ます。名前や数字はチェックしてから送るので、打ちまちがいで変なことは起きません。</p>
+    <p class="muted" style="margin-top:0">よく使う管理コマンドを、入力欄つきのボタンにしました。実行すると、実際に送ったコマンドと、サーバーの返事が下に出ます。名前や数字はチェックしてから送るので、打ち間違いで変なことは起きません。</p>
     <div class="cmd-grid">${groups.map(([g, gl]) => `<div class="panel"><h3>${gl}</h3><div class="stack" style="margin-top:10px">${d.actions.filter((a) => a.group === g).map((a) => `
       <form class="cmd" data-act="${a.id}"><div class="row" style="gap:8px;align-items:flex-end">${(ACTION_FIELDS[a.id] || []).map((f) => input(a.id, f)).join("")}
         <button class="btn sm ${DANGER_ACTIONS.has(a.id) ? "danger" : ""}" type="submit" ${d.running ? "" : "disabled"}>${esc(a.label)}</button></div></form>`).join("")}</div></div>`).join("")}</div>
-    <div class="panel" style="margin-top:16px"><div class="row"><h3 class="grow">アイテムのID一覧 ${help("itemid")}</h3>${itemLangToggle()}<button class="btn sm" data-itemload>一覧を読みこむ</button></div>
-      <p class="muted small" style="margin:6px 0">/give などに入れる<b>アイテムのID</b>です。名前（日本語・英語）か、MODの名前でさがせます。「コピー」を押すと、IDをコピーできます。入れたMODのアイテムも出ます。</p>
-      <input type="text" data-itemq placeholder="さがす（例: ダイヤ、sword、create）" disabled>
-      <div data-itemlist style="margin-top:8px"><div class="faint small">「一覧を読みこむ」を押してください（初回は、公式のデータを取るので、少し時間がかかります）。</div></div></div>
+    <div class="panel" style="margin-top:16px"><div class="row"><h3 class="grow">アイテムのID一覧 ${help("itemid")}</h3>${itemLangToggle()}<button class="btn sm" data-itemload>一覧を読み込む</button></div>
+      <p class="muted small" style="margin:6px 0">/give などに入れる<b>アイテムのID</b>です。名前（日本語・英語）か、MODの名前で探せます。「コピー」を押すと、IDをコピーできます。入れたMODのアイテムも出ます。</p>
+      <input type="text" data-itemq placeholder="探す（例: ダイヤ、sword、create）" disabled>
+      <div data-itemlist style="margin-top:8px"><div class="faint small">「一覧を読み込む」を押してください（初回は、公式のデータを取るので、少し時間がかかります）。</div></div></div>
     <div class="panel" style="margin-top:16px" data-dict></div>
     <div class="panel" style="margin-top:16px"><h3>結果</h3><div class="console" data-out style="height:180px;margin-top:8px"><div class="faint">（コマンドを実行すると、ここに返事が出ます）</div></div></div>`;
   renderCmdDict($("[data-dict]", body), s, d.running);

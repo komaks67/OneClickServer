@@ -36,8 +36,16 @@ def _ctx():
     return ssl.create_default_context()
 
 
+def _check_url(url: str):
+    """http / https 以外（file: など、PCの中のファイルを読めてしまうもの）は使わせない。"""
+    scheme = urllib.parse.urlsplit(str(url)).scheme.lower()
+    if scheme not in ("https", "http"):
+        raise NetError("使えないアドレスです（http / https だけ使えます）")
+
+
 def request(url: str, data=None, method=None, headers=None, timeout=30, retries=2) -> bytes:
     """URL を開いて中身(bytes)を返す。失敗したら少し待って再挑戦する。"""
+    _check_url(url)
     if _fake_handler is not None:
         return _fake_handler(url, data, method)
     h = {"User-Agent": USER_AGENT}
@@ -82,6 +90,7 @@ def post_json(url: str, payload, **kw):
 def download(url: str, dest: str, sha1: str | None = None, sha512: str | None = None,
              progress=None, timeout=60, sha256: str | None = None, md5: str | None = None) -> str:
     """ファイルをダウンロードする。ハッシュ（指紋）が合わなければ消してエラーにする。"""
+    _check_url(url)
     os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(dest)), suffix=".part")
     os.close(fd)

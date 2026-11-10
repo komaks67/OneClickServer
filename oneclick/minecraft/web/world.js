@@ -74,35 +74,35 @@ async function renderGrief(el, s) {
   let d;
   try { d = await api("grief_backups", { id: s.id }); } catch (e) { el.innerHTML = ""; return; }
   el.innerHTML = `<h2 style="margin-top:30px">荒らし（いたずら）を、その場所だけ巻き戻す</h2>
-    <p class="muted" style="max-width:76ch">ワールド全体ではなく、<b>壊された場所だけ</b>を、前のバックアップの状態にもどします。ほかの場所の建築や進み具合は、そのまま残ります。</p>
+    <p class="muted" style="max-width:76ch">ワールド全体ではなく、<b>壊された場所だけ</b>を、前のバックアップの状態に戻します。ほかの場所の建築や進み具合は、そのまま残ります。</p>
     <div class="panel"><div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap">
       <label class="small col">どのバックアップに戻す？<select data-gfile style="min-width:230px">${d.backups.map((b) => `<option value="${esc(b.file)}">${esc(b.when)}（${esc(b.kind)}）</option>`).join("") || "<option value=''>バックアップがありません</option>"}</select></label>
       <label class="small col">場所<select data-gdim>${Object.entries(d.dims).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
       <label class="small col">中心 X<input type="number" data-gx style="width:100px" value="0"></label>
       <label class="small col">中心 Z<input type="number" data-gz style="width:100px" value="0"></label>
       <label class="small col">範囲（半径）<input type="number" data-gr style="width:90px" value="64" min="16" max="1000"></label>
-      <button class="btn" data-gprev>調べる</button><button class="btn danger" data-grun>この場所だけ、もどす</button></div>
+      <button class="btn" data-gprev>調べる</button><button class="btn danger" data-grun>この場所だけ、戻す</button></div>
       <div data-gout style="margin-top:10px"></div>
-      <ul class="small muted" style="padding-left:1.3em;margin-bottom:0"><li>座標は、ゲームの中で <span class="kbd">F3</span> キーを押すと見られます（荒らされた場所の、まん中あたり）。</li>
+      <ul class="small muted" style="padding-left:1.3em;margin-bottom:0"><li>座標は、ゲームの中で <span class="kbd">F3</span> キーを押すと見られます（荒らされた場所の、真ん中あたり）。</li>
         <li>範囲（半径）は、<b>少し広め</b>がおすすめです。64 なら、中心から 64 ブロックの四角です。</li>
-        <li>もどす前に、今のワールドも自動でバックアップします。<b>サーバーを止めてから</b>やってください。</li>
+        <li>戻す前に、今のワールドも自動でバックアップします。<b>サーバーを止めてから</b>やってください。</li>
         <li>その範囲に、バックアップのあとで作った建築があると、<b>消えます</b>。</li></ul></div>`;
   const args = () => ({ id: s.id, file: $("[data-gfile]", el).value, dim: $("[data-gdim]", el).value, x: $("[data-gx]", el).value, z: $("[data-gz]", el).value, radius: $("[data-gr]", el).value });
   $("[data-gprev]", el).onclick = async (e) => {
     e.target.disabled = true;
     try {
       const r = await api("grief_preview", args());
-      $("[data-gout]", el).innerHTML = `<div class="note ${r.chunks ? "ok" : "warn"}"><b>${r.chunks ? `${r.chunks}個の区画（チャンク）が、もどります` : "もどる場所は、ありませんでした"}</b>範囲: ${esc(r.area)}${r.running ? "<br>※ サーバーが動いています。もどす前に、止めてください。" : ""}</div>`;
+      $("[data-gout]", el).innerHTML = `<div class="note ${r.chunks ? "ok" : "warn"}"><b>${r.chunks ? `${r.chunks}個の区画（チャンク）が、戻ります` : "戻る場所は、ありませんでした"}</b>範囲: ${esc(r.area)}${r.running ? "<br>※ サーバーが動いています。戻す前に、止めてください。" : ""}</div>`;
     } catch (err) { fail(err); } finally { e.target.disabled = false; }
   };
   $("[data-grun]", el).onclick = async (e) => {
     const a = args();
     if (!a.file) return toast("バックアップがありません", "warn");
-    if (!(await ask("その場所だけ、もどす", `<p><b>${esc(a.file)}</b> の状態に、この範囲だけをもどします。</p><ul class="small"><li>場所: X ${esc(a.x)} / Z ${esc(a.z)}、半径 ${esc(a.radius)}</li><li>その範囲の、あとから作ったものは消えます。</li><li>今のワールドは、先に自動でバックアップします。</li></ul>`, "もどす", { danger: true }))) return;
+    if (!(await ask("その場所だけ、戻す", `<p><b>${esc(a.file)}</b> の状態に、この範囲だけを戻します。</p><ul class="small"><li>場所: X ${esc(a.x)} / Z ${esc(a.z)}、半径 ${esc(a.radius)}</li><li>その範囲の、あとから作ったものは消えます。</li><li>今のワールドは、先に自動でバックアップします。</li></ul>`, "戻す", { danger: true }))) return;
     e.target.disabled = true;
     try {
-      const r = await runJob(api("grief_revert", a), "その場所だけを、もどしています");
-      $("[data-gout]", el).innerHTML = `<div class="note ok"><b>${r.chunks}個の区画を、もどしました</b>サーバーを起動して、確認してください。まちがえたときは、上の「ワンクリック巻き戻し」の「巻き戻し前」に戻せます。</div>`;
+      const r = await runJob(api("grief_revert", a), "その場所だけを、戻しています");
+      $("[data-gout]", el).innerHTML = `<div class="note ok"><b>${r.chunks}個の区画を、戻しました</b>サーバーを起動して、確認してください。間違えたときは、上の「ワンクリック巻き戻し」の「巻き戻し前」に戻せます。</div>`;
       await refreshState();
     } catch (err) { if (!err.shown) fail(err); } finally { e.target.disabled = false; }
   };
@@ -152,10 +152,10 @@ setTimeout(pollPcLoad, 3000);
 async function renderApplicants(el, s, reload) {
   let d;
   try { d = await api("applicants", { id: s.id }); } catch (e) { el.innerHTML = ""; return; }
-  const msg = "サーバーに入りたいときは、一度サーバーのアドレスで入ろうとしてみてください（ことわられますが、それが申請になります）。そのあと、ホストに「入ろうとしたよ」と教えてください。";
+  const msg = "サーバーに入りたいときは、一度サーバーのアドレスで入ろうとしてみてください（断られますが、それが申請になります）。そのあと、ホストに「入ろうとしたよ」と教えてください。";
   el.innerHTML = `<div class="panel" style="margin-bottom:16px"><h3>入りたい人の申請 ${d.items.length ? `<span class="badge">${d.items.length}人</span>` : ""}</h3>
-    <p class="small muted" style="margin-top:0">ホワイトリストにいない人が入ろうとすると、ここに名前が出ます。<b>「承認」を押すだけで、入れるようになります。</b>名前を打ちまちがえる心配もありません。</p>
-    ${d.enabled ? "" : `<div class="note warn small">今はホワイトリストがOFFで、だれでも入れます。申請を使うには、上のスイッチをONにしてください。</div>`}
+    <p class="small muted" style="margin-top:0">ホワイトリストにいない人が入ろうとすると、ここに名前が出ます。<b>「承認」を押すだけで、入れるようになります。</b>名前を打ち間違える心配もありません。</p>
+    ${d.enabled ? "" : `<div class="note warn small">今はホワイトリストがOFFで、誰でも入れます。申請を使うには、上のスイッチをONにしてください。</div>`}
     <div class="list">${d.items.map((a) => `<div class="row" style="gap:10px;padding:8px 0;border-bottom:1px solid var(--line)"><div class="grow" style="min-width:0"><b>${esc(a.name)}</b> ${cpBtn(a.name, "名前", "名前")}<div class="small muted">${a.count}回 ・ 最後 ${esc(a.last_text)}</div></div>
       <button class="btn sm primary" style="flex:none;width:auto" data-ap="${esc(a.name)}">承認</button><button class="btn sm ghost" style="flex:none;width:auto" data-no="${esc(a.name)}">無視</button></div>`).join("") || `<p class="faint small">いま、申請はありません</p>`}</div>
     <details class="small" style="margin-top:8px"><summary style="cursor:pointer">友達に送る案内文</summary><p>${esc(msg)}</p><button class="btn sm" data-cpmsg>コピー</button></details></div>`;
@@ -172,7 +172,7 @@ const EASY_PROPS = ["motd", "difficulty", "gamemode", "max-players", "white-list
 const EASY_RULES = [/keep_?inventory/i, /mob_?griefing/i, /^(minecraft:)?pvp$/i, /players_?sleeping_?percentage/i];
 
 async function tabEasy(body, s) {
-  body.innerHTML = `<div class="empty">読みこんでいます…</div>`;
+  body.innerHTML = `<div class="empty">読み込んでいます…</div>`;
   let d, g = { running: false, rules: [] };
   try { d = await api("props_get", { id: s.id }); } catch (e) { body.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   try { g = await api("gamerules_get", { id: s.id }); } catch (e) { /* 止まっているとき */ }
@@ -185,7 +185,7 @@ async function tabEasy(body, s) {
     return `<input type="text" data-pk="${esc(it.key)}" value="${esc(it.value)}" style="width:100%">`;
   };
   const rules = EASY_RULES.map((rx) => g.rules.find((r) => rx.test(r.key))).filter((r, i, a) => r && a.indexOf(r) === i && !items.some((it) => it.key === "pvp" && /pvp/i.test(r.key)));
-  body.innerHTML = `<p class="muted" style="margin-top:0;max-width:72ch">よく変える設定だけを、まとめました。<b>変えたら「保存する」</b>を押してください。もっと細かい設定は、画面の右上の「くわしい機能も表示する」を押すと出る「設定」タブにあります。</p>
+  body.innerHTML = `<p class="muted" style="margin-top:0;max-width:72ch">よく変える設定だけを、まとめました。<b>変えたら「保存する」</b>を押してください。もっと細かい設定は、画面の右上の「詳しい機能も表示する」を押すと出る「設定」タブにあります。</p>
     <div class="panel"><h3>基本の遊び方</h3>${items.map((it) => row(it.label, it.help, ctl(it))).join("") || `<p class="faint small">一度サーバーを起動すると、ここに設定が出ます。</p>`}</div>
     <div class="panel" style="margin-top:16px"><h3>ゲームのルール</h3>
       ${g.running ? (rules.map((r) => row(r.label, r.help, r.type === "boolean" ? `<label class="switch"><input type="checkbox" data-gr="${esc(r.key)}" ${r.value ? "checked" : ""}><span></span></label>` : `<input type="number" data-gri="${esc(r.key)}" value="${esc(r.value)}" style="width:130px">`)).join("") || `<p class="faint small">この版では、ここに出せるルールがありません。</p>`)
@@ -256,7 +256,7 @@ async function renderWorldCheck(el, s) {
   try { last = (await api("world_check_last", { id: s.id })).last; } catch (e) { /* なし */ }
   const show = (r, when) => `<div class="note ${r.problems.length ? "warn" : "ok"}" style="margin-top:10px"><b>${r.problems.length ? `${r.problems.length}件、気になるところがありました` : "問題は見つかりませんでした"}</b>${when ? `点検した日時: ${esc(when)}（${r.files}個のファイル）` : ""}
     ${r.problems.length ? `<ul class="small">${r.problems.slice(0, 10).map((p) => `<li><code>${esc(p.file)}</code> ${esc(p.msg)}</li>`).join("")}</ul><div class="small">直したいときは、「バックアップ」タブで、前のバックアップに戻すか、壊れた場所だけ戻してください。</div>` : ""}</div>`;
-  el.innerHTML = `<div class="panel"><h3>ワールドの点検</h3><p class="small muted" style="margin-top:0">ワールドのデータが、こわれていないかを調べます。<b>サーバーが止まっているとき</b>、1日1回、自動でも調べます（このソフトが開いている間だけ）。おかしければ、Discordにも知らせます。</p>
+  el.innerHTML = `<div class="panel"><h3>ワールドの点検</h3><p class="small muted" style="margin-top:0">ワールドのデータが、壊れていないかを調べます。<b>サーバーが止まっているとき</b>、1日1回、自動でも調べます（このソフトが開いている間だけ）。おかしければ、Discordにも知らせます。</p>
     <div class="row"><button class="btn" data-wc>いま点検する</button></div><div data-wcout>${last ? show(last, last.text) : ""}</div></div>`;
   $("[data-wc]", el).onclick = async (e) => {
     e.target.disabled = true;
@@ -300,7 +300,7 @@ function viewImport(root) {
   $("[data-go]", root).onclick = async (e) => {
     e.target.disabled = true;
     try {
-      const r = await runJob(api("server_import", { path: up.path, name: $("[data-name]", root).value }), "引っ越しファイルをひらいています");
+      const r = await runJob(api("server_import", { path: up.path, name: $("[data-name]", root).value }), "引っ越しファイルを開いています");
       if (r) { await refreshState(); toast("サーバーを作りました"); go("server", { server: r.server, tab: "home", consoleNext: 0 }); }
     } catch (err) { if (!err.shown) fail(err); } finally { e.target.disabled = false; }
   };

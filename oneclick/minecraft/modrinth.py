@@ -94,6 +94,16 @@ def primary_file(ver: dict) -> dict:
 
 # ---------------- 入っている MOD の記録（mods.json） ----------------
 
+def _safe_rel(path) -> bool:
+    """サーバーのフォルダの中だけを指す、普通の相対パスか。"""
+    if not isinstance(path, str) or not path or len(path) > 300:
+        return False
+    p = path.replace("\\", "/")
+    if p.startswith("/") or ":" in p or "\x00" in p:
+        return False
+    return all(part not in ("", ".", "..") for part in p.split("/"))
+
+
 class ModList:
     """サーバーごとの MOD の記録。"""
 
@@ -102,7 +112,10 @@ class ModList:
         self.loader = load_json(os.path.join(server_dir, "mcmh.json"), {}).get("loader")
         self.folder = folder_for(self.loader)
         self.path = os.path.join(server_dir, "mods.json")
-        self.items: list[dict] = load_json(self.path, [])
+        items = load_json(self.path, [])
+        # よそから来たファイル（引っ越しファイルなど）に、フォルダの外を指す危ない場所が書かれていたら、その行は使わない
+        self.items: list[dict] = [m for m in items if isinstance(m, dict) and _safe_rel(m.get("path"))] \
+            if isinstance(items, list) else []
 
     def save(self):
         save_json(self.path, self.items)

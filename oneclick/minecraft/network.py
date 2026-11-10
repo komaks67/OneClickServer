@@ -320,3 +320,55 @@ def reach_test(address: str) -> dict:
             "version": data.get("version"), "players": players.get("online"), "max": players.get("max"),
             "motd": motd, "cached": bool((data.get("debug") or {}).get("cachehit")),
             "srv": bool((data.get("debug") or {}).get("srv"))}
+
+
+# ---------------- ネットワーク診断 ----------------
+
+def global_ipv6() -> str | None:
+    """このPCの、インターネットで使える IPv6 アドレス（なければ None）。"""
+    try:
+        s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    except OSError:
+        return None
+    try:
+        s.connect(("2001:4860:4860::8888", 80))
+        ip = s.getsockname()[0].split("%")[0]
+        a = ipaddress.ip_address(ip)
+        return ip if a.is_global else None
+    except (OSError, ValueError):
+        return None
+    finally:
+        s.close()
+
+
+def diagnose(port: int, log=print) -> dict:
+    """友達を呼ぶ方法（IPv6 直接・自動ポート開放・playit）のうち、この回線で使えるものを調べる。"""
+    out: dict = {"port": port}
+    log("インターネットから見たアドレスを調べています…")
+    out["ipv4"] = global_ip()
+    log("ルーターが自動ポート開放（UPnP）に対応しているか調べています…")
+    out["upnp"], out["upnp_ip"], out["upnp_error"] = False, None, ""
+    try:
+        gw = discover(timeout=3.0)
+        out["upnp"] = True
+        try:
+            out["upnp_ip"] = gw.external_ip()
+        except UpnpError:
+            pass
+    except UpnpError as e:
+        out["upnp_error"] = str(e)
+    except Exception as e:  # noqa: BLE001
+        out["upnp_error"] = str(e)
+    wan = out["upnp_ip"]
+    # ルーターの外側のアドレスが、インターネットから見たアドレスと違う → 共有アドレスの回線（v6プラス・マンション回線など）
+    out["shared_v4"] = bool((wan and (is_not_public(wan) or (out["ipv4"] and wan != out["ipv4"]))))
+    log("IPv6 が使えるか調べています…")
+    out["ipv6"] = global_ipv6()
+    out["ipv6_address"] = (f"[{out['ipv6']}]" + ("" if port == 25565 else f":{port}")) if out["ipv6"] else ""
+    if out["upnp"] and not out["shared_v4"] and out["ipv4"]:
+        out["best"] = "upnp"
+    elif out["ipv6"]:
+        out["best"] = "ipv6_or_playit"
+    else:
+        out["best"] = "playit"
+    return out

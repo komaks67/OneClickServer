@@ -253,8 +253,8 @@ SAVED_RE = re.compile(r"Saved the game|Saved the world", re.I)
 PREP_RE = re.compile(r"Preparing spawn area:\s*(\d+)\s*%")
 PROGRESS_STEPS = [
     (re.compile(r"Starting minecraft server|Starting net\.minecraft\.server", re.I), 8, "サーバーを始めています"),
-    (re.compile(r"Loading (?:libraries|mods?)|Loading \d+ mods|ModLauncher|Loading Minecraft|Mod discovery|Found \d+ mod", re.I), 18, "MODを読みこんでいます"),
-    (re.compile(r"Loading properties|Default game type|Generating keypair", re.I), 30, "設定を読みこんでいます"),
+    (re.compile(r"Loading (?:libraries|mods?)|Loading \d+ mods|ModLauncher|Loading Minecraft|Mod discovery|Found \d+ mod", re.I), 18, "MODを読み込んでいます"),
+    (re.compile(r"Loading properties|Default game type|Generating keypair", re.I), 30, "設定を読み込んでいます"),
     (re.compile(r"Starting Minecraft server on|Preparing level|Loading (?:world|level)", re.I), 45, "ワールドを開いています"),
     (re.compile(r"Preparing start region|Preparing spawn", re.I), 60, "スポーン地点を準備中"),
     (re.compile(r"RCON running|Running delayed init|Done preparing", re.I), 96, "もうすぐ完了です"),
@@ -352,7 +352,7 @@ class Runner:
             self._restart_times = [t for t in self._restart_times if now - t < 30 * 60]
             if len(self._restart_times) >= limit:
                 self.last_exit["gave_up"] = True
-                self.on_line(f"⛔ 30分のあいだに {limit} 回、自動で再起動しましたが、また止まりました。"
+                self.on_line(f"⛔ 30分の間に {limit} 回、自動で再起動しましたが、また止まりました。"
                              "くり返しになるので、自動の再起動をやめます。原因を直してから、手動で起動してください。")
                 try:
                     self.on_giveup(limit)
@@ -413,7 +413,11 @@ class Runner:
         if not self.proc or self.proc.poll() is not None:
             return False
         try:
-            self.proc.stdin.write(command.strip().lstrip("/") + "\n")
+            # 1回に送れるのは1行だけ（改行をまぜて、別のコマンドをこっそり実行させないため）
+            line = re.sub(r"[\r\n\x00]+", " ", str(command)).strip().lstrip("/")
+            if not line:
+                return False
+            self.proc.stdin.write(line[:2000] + "\n")
             self.proc.stdin.flush()
             return True
         except OSError:

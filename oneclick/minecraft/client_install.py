@@ -23,12 +23,41 @@ def ensure_launcher_profiles(mc_dir: str):
     return p
 
 
+IN_USE_MSG = ("マイクラ（またはマイクラのランチャー）が動いているので、入れられませんでした。\n"
+              "① マイクラとランチャーを閉じる\n"
+              "② タスクマネージャー（Ctrl+Shift+Esc）に「java」が残っていたら終了する\n"
+              "③ もう一度、同じボタンを押す\n"
+              "それでもだめなら、PCを再起動してからやり直してください。")
+
+
+def _decode(b: bytes) -> str:
+    """Java の出力は、日本語Windowsだと Shift_JIS のことがある（文字化けを防ぐ）。"""
+    for enc in ("utf-8", "cp932"):
+        try:
+            return b.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return b.decode("utf-8", errors="replace")
+
+
 def _run(java, args, cwd, log):
-    p = subprocess.run([java, "-jar"] + args, cwd=cwd, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace", creationflags=NO_WINDOW)
+    p = subprocess.run([java, "-jar"] + args, cwd=cwd, capture_output=True, creationflags=NO_WINDOW)
     if p.returncode != 0:
-        tail = "\n".join(((p.stdout or "") + (p.stderr or "")).strip().splitlines()[-12:])
+        out = (_decode(p.stdout or b"") + _decode(p.stderr or b"")).strip()
+        if "FileSystemException" in out or "AccessDeniedException" in out or "being used by another process" in out \
+                or "使用中" in out:
+            raise RuntimeError(IN_USE_MSG)
+        tail = "\n".join(out.splitlines()[-12:])
         raise RuntimeError("ローダーのインストールに失敗しました:\n" + tail)
+
+
+def _installed(mc_dir: str, vid: str) -> bool:
+    """そのバージョンが、もうランチャーに入っているか（入っていれば入れ直さない）。"""
+    j = os.path.join(mc_dir, "versions", vid, vid + ".json")
+    try:
+        return os.path.getsize(j) > 50
+    except OSError:
+        return False
 
 
 def install_loader_client(mc_dir: str, mc: str, loader: str, lver: str | None, java: str,
@@ -39,6 +68,9 @@ def install_loader_client(mc_dir: str, mc: str, loader: str, lver: str | None, j
         return mc
     if loader == "fabric":
         lv = lver or loaders.fabric_loader_for(mc)
+        if _installed(mc_dir, f"fabric-loader-{lv}-{mc}"):
+            log(f"Fabric {lv} は、もう入っています（そのまま使います）")
+            return f"fabric-loader-{lv}-{mc}"
         inst = net.get_json(f"{loaders.FABRIC_META}/versions/installer")
         pick = next((x for x in inst if x.get("stable")), inst[0])
         jar = os.path.join(work_dir, "fabric-installer.jar")
@@ -48,6 +80,9 @@ def install_loader_client(mc_dir: str, mc: str, loader: str, lver: str | None, j
         return f"fabric-loader-{lv}-{mc}"
     if loader == "neoforge":
         v = lver or loaders.neoforge_for(mc)
+        if _installed(mc_dir, f"neoforge-{v}"):
+            log(f"NeoForge {v} は、もう入っています（そのまま使います）")
+            return f"neoforge-{v}"
         jar = os.path.join(work_dir, f"neoforge-{v}-installer.jar")
         log(f"NeoForge {v} を入れています…（数分かかります）")
         net.download(f"{loaders.NEOFORGE_MAVEN}/{v}/neoforge-{v}-installer.jar", jar)
@@ -96,6 +131,50 @@ def add_launcher_profile(mc_dir: str, key: str, name: str, version_id: str, game
     save_json(p, data)
 
 
+def expect_from_pack(pack_path: str, skip: set[str] | None = None) -> dict:
+    """このパックを入れたとき、mods フォルダにあるはずのファイル（参加前チェックで使う）。"""
+    import zipfile
+    info = mrpack.pack_info(pack_path)
+    files = {}
+    for f in info["files"]:
+        env = f.get("env", {})
+        if not f["path"].startswith("mods/") or env.get("client") == "unsupported":
+            continue
+        if f["path"] in (skip or set()) and env.get("client") == "optional":
+            continue
+        files[os.path.basename(f["path"])] = f.get("hashes", {}).get("sha1") or ""
+    extra = []
+    try:
+        with zipfile.ZipFile(pack_path) as z:
+            for n in z.namelist():
+                parts = n.replace("\\", "/").split("/")
+                if len(parts) == 3 and parts[0] in ("overrides", "client-overrides") and parts[1] == "mods" and parts[2].endswith(".jar"):
+                    extra.append(parts[2])
+    except (OSError, zipfile.BadZipFile):
+        pass
+    return {"files": files, "bundled": sorted(set(extra))}
+
+
+def verify_mods(game_dir: str, expect: dict) -> dict:
+    """mods フォルダが、パックのとおりかを調べる。"""
+    mods_dir = os.path.join(game_dir, "mods")
+    have = {fn for fn in os.listdir(mods_dir) if fn.endswith(".jar")} if os.path.isdir(mods_dir) else set()
+    files = expect.get("files") or {}
+    bundled = set(expect.get("bundled") or [])
+    missing = sorted(fn for fn in list(files) + sorted(bundled) if fn not in have)
+    broken = []
+    for fn, sha in files.items():
+        if fn in have and sha:
+            try:
+                if net.file_hash(os.path.join(mods_dir, fn), "sha1") != sha:
+                    broken.append(fn)
+            except OSError:
+                broken.append(fn)
+    extra = sorted(fn for fn in have if fn not in files and fn not in bundled and not fn.startswith("_my_"))
+    return {"missing": missing, "broken": sorted(broken), "extra": extra,
+            "ok": not missing and not broken, "count": len(files) + len(bundled)}
+
+
 def join_with_pack(pack_path: str, mc_dir: str, mem_gb: int, work_dir: str, log=print,
                    skip: set[str] | None = None) -> dict:
     """友達からもらった .mrpack を、このPCのマイクラに入れる。"""
@@ -115,9 +194,15 @@ def join_with_pack(pack_path: str, mc_dir: str, mem_gb: int, work_dir: str, log=
     if os.path.isdir(mods_dir):
         for fn in os.listdir(mods_dir):
             if fn.endswith(".jar") and fn not in wanted and not fn.startswith("_my_"):
-                os.remove(os.path.join(mods_dir, fn))
+                try:
+                    os.remove(os.path.join(mods_dir, fn))
+                except PermissionError:
+                    raise RuntimeError(IN_USE_MSG) from None
 
-    mrpack.install_pack_files(pack_path, game_dir, "client", log, skip=skip)
+    try:
+        mrpack.install_pack_files(pack_path, game_dir, "client", log, skip=skip)
+    except PermissionError:
+        raise RuntimeError(IN_USE_MSG) from None
 
     need = loaders.required_java(info["mc"])
     java = javamgr.ensure_java(need, log)
@@ -127,7 +212,7 @@ def join_with_pack(pack_path: str, mc_dir: str, mem_gb: int, work_dir: str, log=
     log("✅ 完了！ マイクラのランチャーで「" + info["name"] + "（マルチ用）」を選んで「プレイ」を押してください。")
     return {"name": info["name"], "game_dir": game_dir, "version_id": vid, "profile_key": key,
             "mc": info["mc"], "loader": info["loader"], "pack_version": info.get("version"),
-            "update": mrpack.read_update_info(pack_path)}
+            "update": mrpack.read_update_info(pack_path), "expect": expect_from_pack(pack_path, skip)}
 
 
 def open_launcher() -> bool:

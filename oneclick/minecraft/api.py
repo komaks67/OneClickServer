@@ -19,7 +19,7 @@ from . import (extras, items as items_mod, regions, presets, admin, boottest, cl
                server, translate)
 from . import paths as _paths
 from .modrinth import ModList
-from .paths import BASE_DIR, CACHE_DIR, IS_WINDOWS, SERVERS_DIR, load_settings, save_settings
+from .paths import BASE_DIR, CACHE_DIR, IS_WINDOWS, SERVERS_DIR, load_json, load_settings, save_json, save_settings
 
 from .appinfo import VERSION as APP_VERSION  # noqa: E402
 settings = load_settings()
@@ -44,7 +44,7 @@ if not settings.get("style_default_v2"):
 
 # Discord に知らせられること
 DISCORD_EVENTS = {"start": "サーバーが起動した", "stop": "サーバーが止まった", "crash": "サーバーが落ちた（トラブル）",
-                  "join": "だれかが入った・出た", "intrusion": "ホワイトリストにない人が入ろうとした",
+                  "join": "誰かが入った・出た", "intrusion": "ホワイトリストにない人が入ろうとした",
                   "lag": "サーバーが重くなった"}
 DISCORD_DEFAULT = ["start", "stop", "crash", "intrusion"]
 watch.settings_ref = settings
@@ -103,7 +103,7 @@ def job_cancel(id):
     job = jobs.get(id)
     if job:
         job.cancel.set()
-        job.write("止めています…（もとにもどしています）")
+        job.write("止めています…（もとに戻しています）")
     return {"ok": True}
 
 
@@ -152,10 +152,15 @@ def _runner(id) -> server.Runner:
         prof = _prof(id)
         con = consoles.setdefault(id, Console())
 
+        last_state = {"s": None}
+
         def on_state(state, id=id):
             r = runners.get(id)
+            changed = state != last_state["s"]      # 入退出のたびにも呼ばれるので、本当に変わったときだけ知らせる
+            last_state["s"] = state
             try:
-                _state_notify(id, state, r)
+                if changed:
+                    _state_notify(id, state, r)
             except Exception:  # noqa: BLE001
                 traceback.print_exc()
             try:
@@ -932,7 +937,7 @@ def set_settings(**kw):
             settings[k] = kw[k]
     if "ui_mode" in kw:
         if kw["ui_mode"] not in ("simple", "detail"):
-            raise UserError("表示は「かんたん」か「くわしい」を選んでください。")
+            raise UserError("表示は「かんたん」か「詳しい」を選んでください。")
         settings["ui_mode"] = kw["ui_mode"]
     for k in ("hide_next_step", "tour_done", "auto_update_check"):
         if k in kw:
@@ -1350,7 +1355,7 @@ def ignored_deps(server):
 
 
 def adopt_data():
-    """この data フォルダを、このPCのものとして使う（別のPCから来た data でも、持ち主を切りかえる）。"""
+    """この data フォルダを、このPCのものとして使う（別のPCから来た data でも、持ち主を切り替える）。"""
     _paths.adopt_data()
     _paths.FOREIGN_DATA = False
     return {"ok": True}
@@ -1361,8 +1366,8 @@ _JOIN_PATTERNS = [
      "ホストが、この人の「マイクラの名前」をメンバーに追加すると入れます。"),
     (re.compile(r"banned|multiplayer\.disconnect\.banned", re.I), "BANされています", "メンバー・BANのタブで確認してください。"),
     (re.compile(r"Mod rejections|mismatch|Missing mods?|Registry|incompatible", re.I), "MODの構成が、サーバーと合っていません",
-     "友達用パックを最新にして、入れ直してもらってください（MODの種類・バージョンがちがうときに出ます）。"),
-    (re.compile(r"Outdated (?:client|server)|multiplayer\.disconnect\.outdated", re.I), "マイクラのバージョンがちがいます",
+     "友達用パックを最新にして、入れ直してもらってください（MODの種類・バージョンが違うときに出ます）。"),
+    (re.compile(r"Outdated (?:client|server)|multiplayer\.disconnect\.outdated", re.I), "マイクラのバージョンが違います",
      "サーバーと同じバージョンの「（マルチ用）」で起動してもらってください。"),
     (re.compile(r"Timed out|timeout", re.I), "通信が途中で切れました（時間切れ）",
      "友達のネットが不安定か、サーバーが重いときに起きます。"),
@@ -1370,7 +1375,7 @@ _JOIN_PATTERNS = [
      "友達の回線・Wi-Fi が不安定なことが多いです。何度も続くなら、有線や別の回線を試してもらってください。"),
     (re.compile(r"illegal characters|Invalid session|Failed to verify username|unverified", re.I), "ログインの確認に失敗しました",
      "友達がマイクラにログインできているか確認してもらってください（正規版が必要です）。"),
-    (re.compile(r"server is full|multiplayer\.disconnect\.server_full", re.I), "満員です", "最大人数を増やすか、だれかに出てもらってください。"),
+    (re.compile(r"server is full|multiplayer\.disconnect\.server_full", re.I), "満員です", "最大人数を増やすか、誰かに出てもらってください。"),
 ]
 
 
@@ -1397,8 +1402,34 @@ def join_problems(id):
         else:
             title, fix = "つながりませんでした", "理由の文字を、ホストに見せてもらうと原因がわかります。"
         t = re.search(r"(\d\d:\d\d:\d\d)", ln)
-        out.append({"time": t.group(1) if t else "", "who": watch.mask_ips(who or "だれか"), "title": title, "fix": fix,
+        out.append({"time": t.group(1) if t else "", "who": watch.mask_ips(who or "誰か"), "title": title, "fix": fix,
                     "raw": watch.mask_ips(why)[:200]})
+    # 入ってすぐ（10秒以内）に切れた人は、MODが合っていないことが多い
+    def secs(s):
+        h, m_, s_ = (int(x) for x in s.split(":"))
+        return h * 3600 + m_ * 60 + s_
+    logins: dict[str, int] = {}
+    quick: dict[str, dict] = {}
+    for ln in text.splitlines():
+        t = re.search(r"(\d\d:\d\d:\d\d)", ln)
+        if not t:
+            continue
+        m = watch.LOGIN_RE.search(ln)
+        if m:
+            logins[m.group(1)] = secs(t.group(1))
+            continue
+        m = re.search(r"\]:\s*([A-Za-z0-9_]{2,16}) lost connection: Disconnected\s*$", ln)
+        if m and m.group(1) in logins and 0 <= secs(t.group(1)) - logins.pop(m.group(1)) <= 10:
+            q = quick.setdefault(m.group(1), {"n": 0, "time": ""})
+            q["n"] += 1
+            q["time"] = t.group(1)
+    for who, q in quick.items():
+        out.append({"time": q["time"], "who": who, "title": "入ってすぐに切れました（MODが合っていないかもしれません）",
+                    "fix": "友達の画面に「クライアントで認識されていないレジストリ項目」「Mod が一致しない」と出ていたら、MODが足りないか古いです。"
+                           "友達に、マイクラとランチャーを閉じてから、このソフトの「友達のサーバーに参加」→「▶ 遊ぶ」を押してもらってください"
+                           "（MODを自動でそろえます）。そのあと「（マルチ用）」で起動します。",
+                    "raw": f"{q['n']}回"})
+    out.sort(key=lambda x: x["time"])
     return {"items": out[-15:][::-1]}
 
 
@@ -1560,11 +1591,11 @@ def grief_revert(id, file, dim, x, z, radius):
     def work(job):
         job.write("念のため、今のワールドをバックアップしています…")
         server.make_backup(p, "before-rollback")
-        job.write("その場所だけを、もどしています…")
+        job.write("その場所だけを、戻しています…")
         r = regions.revert_area(p.dir, os.path.basename(p.world_dir()), path, dim, x, z, radius)
         admin.audit(p.dir, "荒らしの巻き戻し（範囲）", f"{os.path.basename(path)} / {dim} / X{x} Z{z} 半径{radius}")
         return r
-    return start_job("その場所だけを、もどしています", work)
+    return start_job("その場所だけを、戻しています", work)
 
 
 # ---------------- おすすめMODの組み合わせ ----------------
@@ -1633,7 +1664,7 @@ def world_check_last(id):
 def world_check(id):
     p = _prof(id)
     if runners.get(id) and runners[id].running:
-        raise UserError("サーバーが動いています。動いている間は、書きかけのデータで、まちがって「こわれている」と出ることがあります。先に停止してください。")
+        raise UserError("サーバーが動いています。動いている間は、書きかけのデータで、間違って「壊れている」と出ることがあります。先に停止してください。")
 
     def work(job):
         job.write("ワールドを点検しています…")
@@ -1712,7 +1743,7 @@ def server_import(path, name=""):
         server.write_props(prof.props_path, {"server-port": str(port)})
         job.write("できました。サーバーの一覧に出ます。")
         return {"server": os.path.basename(folder)}
-    return start_job("引っ越しファイルをひらいています", work)
+    return start_job("引っ越しファイルを開いています", work)
 
 
 # ---------------- ひな形 ----------------
@@ -1799,13 +1830,13 @@ def pc_load():
         msgs.append(f"PCのCPUが、かなり使われています（{cpu}%）。")
     tips = []
     if level != "ok":
-        tips = ["ブラウザのタブや、使っていないアプリを閉じてください", "サーバーのメモリを、少し減らしてください（「くわしい表示」→「設定」）",
+        tips = ["ブラウザのタブや、使っていないアプリを閉じてください", "サーバーのメモリを、少し減らしてください（「詳しい表示」→「設定」）",
                 "重いMOD（影MODなど）を、一度OFFにしてください", "自分も遊ぶときは、ゲームの描画距離を下げてください"]
     return {"level": level, "free_mb": free, "total_mb": total, "used_pct": used_pct, "cpu": cpu, "messages": msgs, "tips": tips}
 
 
 def install_dep(server, id):
-    """相性チェックで見つかった「足りない前提MOD」をさがして入れる。"""
+    """相性チェックで見つかった「足りない前提MOD」を探して入れる。"""
     p = _prof(server)
 
     def work(job):
@@ -1950,27 +1981,109 @@ def mods_updates(server):
 _update_cache: dict[str, list] = {}
 
 
+MOD_SNAP = "mcmh-mod-snapshot"
+
+
+def _mods_snapshot(p, ml, recs) -> str:
+    """更新する前の状態を、1回分だけ取っておく（「元に戻す」用）。古いMODのファイルと、MODの一覧。"""
+    snap = os.path.join(p.dir, MOD_SNAP)
+    shutil.rmtree(snap, ignore_errors=True)
+    os.makedirs(os.path.join(snap, "files"), exist_ok=True)
+    shutil.copy2(ml.path, os.path.join(snap, "mods.json"))
+    saved = []
+    for rec in recs:
+        src = ml.file_path(rec)
+        if os.path.isfile(src):
+            rel = os.path.relpath(src, p.dir)
+            dst = os.path.join(snap, "files", rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+            saved.append(rel)
+    save_json(os.path.join(snap, "info.json"), {"time": time.time(), "files": saved,
+                                                 "titles": [r.get("title") for r in recs]})
+    return snap
+
+
+def mods_snapshot_info(server):
+    p = _prof(server)
+    info = load_json(os.path.join(p.dir, MOD_SNAP, "info.json"), None)
+    return {"exists": bool(info), "time": (info or {}).get("time") or 0, "titles": (info or {}).get("titles") or []}
+
+
+def mods_rollback(server):
+    """直前の「まとめて更新」を、元に戻す。"""
+    p = _prof(server)
+    r = runners.get(server)
+    if r and r.running:
+        raise UserError("サーバーが動いている間は戻せません。先に止めてください。")
+    snap = os.path.join(p.dir, MOD_SNAP)
+    info = load_json(os.path.join(snap, "info.json"), None)
+    old = load_json(os.path.join(snap, "mods.json"), None)
+    if not info or not isinstance(old, list):
+        raise UserError("戻せる記録がありません。")
+    ml = ModList(p.dir)
+    old_paths = {os.path.normpath(os.path.relpath(_rec_file(p, m), p.dir)) for m in old}
+    for m in ml.items:                      # 更新で入った新しいファイルを消す
+        f = ml.file_path(m)
+        if os.path.normpath(os.path.relpath(f, p.dir)) not in old_paths and os.path.isfile(f):
+            os.remove(f)
+    for rel in info.get("files", []):       # 古いファイルを戻す
+        src = os.path.join(snap, "files", rel)
+        dst = mrpack._safe_target(p.dir, rel.replace(os.sep, "/"))
+        if os.path.isfile(src):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+    shutil.copy2(os.path.join(snap, "mods.json"), ml.path)
+    shutil.rmtree(snap, ignore_errors=True)
+    return {"ok": True, "titles": info.get("titles") or []}
+
+
+def _rec_file(p, m) -> str:
+    ml = ModList(p.dir)
+    return ml.file_path(m)
+
+
 def mods_apply_updates(server, sha1s):
     p = _prof(server)
+    r = runners.get(server)
+    if r and r.running:
+        raise UserError("サーバーが動いている間は更新できません（使っているファイルは入れ替えられないためです）。先に止めてください。")
     ups = [(m, v) for m, v in _update_cache.get(server, []) if m["sha1"] in set(sha1s)]
 
     def work(job):
         ml = ModList(p.dir)
-        n = 0
-        for m, v in ups:
-            rec = next((x for x in ml.items if x.get("sha1") == m.get("sha1")), None)
-            if rec and "cf" in v:
-                enabled = rec.get("enabled", True)
-                curseforge.install(ml, settings.get("cf_key"), rec["cf_id"], p.get("mc"), p.get("loader"), job.write)
-                new = ml.by_project(rec["project_id"])
-                if new and not enabled:
-                    ml.set_enabled(new, False)
+        targets = [(next((x for x in ml.items if x.get("sha1") == m.get("sha1")), None), v) for m, v in ups]
+        targets = [(rec, v) for rec, v in targets if rec]
+        if not targets:
+            return {"updated": 0, "failed": [], "snapshot": False}
+        job.write("元に戻せるように、今のMODを取っておきます…")
+        _mods_snapshot(p, ml, [rec for rec, _ in targets])
+        n, failed = 0, []
+        for i, (rec, v) in enumerate(targets, 1):
+            title = rec.get("title") or "?"
+            job.write(f"[{i}/{len(targets)}] {title}")
+            try:
+                if "cf" in v:
+                    enabled = rec.get("enabled", True)
+                    curseforge.install(ml, settings.get("cf_key"), rec["cf_id"], p.get("mc"), p.get("loader"), job.write)
+                    new = ml.by_project(rec["project_id"])
+                    if new and not enabled:
+                        ml.set_enabled(new, False)
+                else:
+                    modrinth.apply_update(ml, rec, v, job.write)
                 n += 1
-            elif rec:
-                modrinth.apply_update(ml, rec, v, job.write)
-                n += 1
-        return {"updated": n}
-    return start_job("MODを更新しています", work)
+            except Exception as e:  # noqa: BLE001  1つ失敗しても、残りは続ける
+                failed.append({"title": title, "error": str(e)[:200]})
+                job.write(f"  ⚠ 更新できませんでした: {e}")
+        _update_cache.pop(server, None)
+        issues = []
+        try:
+            issues = [i for i in conflicts.check_server(p).get("issues", []) if i.get("level") == "error"][:5]
+        except Exception:  # noqa: BLE001
+            pass
+        return {"updated": n, "failed": failed, "snapshot": True,
+                "issues": [{"title": i.get("title") or i.get("text") or "", "level": i.get("level")} for i in issues]}
+    return start_job("MODをまとめて更新しています", work)
 
 
 def check_conflicts(server):
@@ -2193,7 +2306,7 @@ def _pack_diff(old: dict, new: dict) -> dict:
     return {"added": added, "removed": removed, "updated": updated}
 
 
-def merge_pack_changes(log, from_ver, to_ver) -> dict:
+def _merge_pack_changes(log, from_ver, to_ver) -> dict:
     """友達の持っているバージョンから最新までの変更点を、ひとまとめにする。"""
     def vt(v):
         return tuple(int(x) for x in re.findall(r"\d+", str(v or ""))) or (0,)
@@ -2307,7 +2420,7 @@ def _save_joined(res, mc_dir, mem_gb, skip, local_server=None):
         "name": res["name"], "mc": res.get("mc"), "loader": res.get("loader"), "game_dir": res["game_dir"],
         "mc_dir": mc_dir, "mem_gb": int(mem_gb), "skip": sorted(skip or []), "version": res.get("pack_version"),
         "pack_id": up.get("pack_id"), "address": up.get("address") or "", "local_server": local_server,
-        "updated": time.time()}
+        "updated": time.time(), "expect": res.get("expect") or {}}
     save_settings(settings)
 
 
@@ -2374,7 +2487,7 @@ def joined_check(key=None):
         elif str(info.get("version")) != str(rec.get("version")):
             out[k] = {"status": "update", "text": f"新しいパックがあります（{rec.get('version')} → {info.get('version')}）",
                       "new": info.get("version"),
-                      "changes": merge_pack_changes(info.get("changes_log"), rec.get("version"), info.get("version"))}
+                      "changes": _merge_pack_changes(info.get("changes_log"), rec.get("version"), info.get("version"))}
         else:
             out[k] = {"status": "latest", "text": f"最新です（{rec.get('version')}）"}
     return {"results": out}
@@ -2410,9 +2523,52 @@ def joined_play(key):
             updated = _do_update(key, job)
         except (packupdate.UpdateError, net.NetError, OSError) as e:
             job.write(f"確かめられませんでした（{e}）。今のまま遊びます。")
+        check = _precheck(key, job)
         opened = client_install.open_launcher()
-        return {"updated": updated, "opened": opened, "name": settings["joined"][key]["name"]}
+        return {"updated": updated, "opened": opened, "name": settings["joined"][key]["name"], "check": check}
     return start_job("遊ぶ準備をしています", work)
+
+
+def _precheck(key, job) -> dict:
+    """参加前チェック：入っているMODが、サーバーのパックと同じかを調べて、違えば直す。"""
+    rec = settings.get("joined", {}).get(key) or {}
+    job.write("MODがサーバーと同じか、調べています…")
+    info = path = None
+    try:
+        info = _remote_info(rec)
+        if info.get("pack_id") == rec.get("pack_id") and str(info.get("version")) == str(rec.get("version")):
+            path = info.get("_local") or packupdate.download(info, os.path.join(CACHE_DIR, "packs"))
+    except Exception:  # noqa: BLE001  （サーバーが止まっている・ネットがない など）
+        info = None
+    expect = rec.get("expect") or {}
+    if path:
+        try:
+            expect = client_install.expect_from_pack(path, set(rec.get("skip", [])))
+        except Exception:  # noqa: BLE001
+            pass
+    if not expect.get("files") and not expect.get("bundled"):
+        job.write("（くらべるための一覧がないので、今回は調べられませんでした）")
+        return {"status": "unknown"}
+    v = client_install.verify_mods(rec.get("game_dir") or "", expect)
+    if v["ok"]:
+        job.write(f"✅ MODはサーバーと同じです（{v['count']}個）")
+        return {"status": "ok", **v}
+    bad = v["missing"] + v["broken"]
+    job.write(f"⚠ 足りない・壊れているMODが {len(bad)}個 あります: " + "、".join(bad[:5]) + (" ほか" if len(bad) > 5 else ""))
+    if not path:
+        job.write("サーバーにつながらないので、直せませんでした。ホストがサーバーを起動しているときに、もう一度「遊ぶ」を押してください。")
+        return {"status": "bad", **v}
+    job.write("直しています…")
+    try:
+        res = client_install.join_with_pack(path, rec["mc_dir"], rec.get("mem_gb", 4), os.path.join(CACHE_DIR, "installers"),
+                                            job.write, skip=set(rec.get("skip", [])))
+    except Exception as e:  # noqa: BLE001  直せなくても、ランチャーは開く（理由は画面に出す）
+        job.write(f"⚠ 直せませんでした: {e}")
+        return {"status": "bad", "error": str(e)[:300], **v}
+    _save_joined(res, rec["mc_dir"], rec.get("mem_gb", 4), rec.get("skip", []), rec.get("local_server"))
+    v2 = client_install.verify_mods(res["game_dir"], res.get("expect") or expect)
+    job.write("✅ 直しました" if v2["ok"] else "⚠ 直しきれませんでした")
+    return {"status": "fixed" if v2["ok"] else "bad", "fixed": bad, **v2}
 
 
 def joined_remove(key):
@@ -2463,10 +2619,10 @@ def find_culprit(id):
         try:
             return boottest.find_culprit(p, job.write, job.cancel)
         except boottest.Cancelled:
-            return {"cancelled": True, "found": False, "message": "途中で止めました。MODは元にもどしました。"}
+            return {"cancelled": True, "found": False, "message": "途中で止めました。MODは元に戻しました。"}
         finally:
             busy.discard(id)
-    return start_job("原因のMODをさがしています", work)
+    return start_job("原因のMODを探しています", work)
 
 
 # ---------------- 重さ・事前生成 ----------------
@@ -2543,7 +2699,7 @@ def pregen_cmd(id, action):
     return {"ok": True}
 
 
-# ============================================================ ワンクリック最適化・重さの原因さがし
+# ============================================================ ワンクリック最適化・重さの原因探し
 
 def _mods_count(p):
     return len([m for m in ModList(p.dir).items if m.get("enabled", True) and m.get("location") == "server"])
@@ -2578,8 +2734,8 @@ def optimize_undo(id):
     p = _prof(id)
     n = optimize.undo(p, server.write_props, lambda mb: p.set(memory_mb=mb))
     if not n:
-        raise UserError("元にもどす記録がありません。")
-    admin.audit(p.dir, "最適化を元にもどす", f"{n}個")
+        raise UserError("元に戻す記録がありません。")
+    admin.audit(p.dir, "最適化を元に戻す", f"{n}個")
     return {"restored": n}
 
 
@@ -2593,7 +2749,7 @@ def lag_scan(id):
         res = optimize.scan(captures[id], players, job.write, cancel=job.cancel.is_set)
         last_scan[id] = res
         return res
-    return start_job("重さの原因をさがしています", work)
+    return start_job("重さの原因を探しています", work)
 
 
 last_scan: dict[str, dict] = {}
@@ -2625,7 +2781,7 @@ def lag_clear(id, types, warn_seconds=0):
 
 
 def startup():
-    """ソフトを起動したとき：前回の起動テストで一時的にどけたMODがあれば、元にもどす。見張り係を動かす。"""
+    """ソフトを起動したとき：前回の起動テストで一時的にどけたMODがあれば、元に戻す。見張り係を動かす。"""
     for p in server.list_profiles():
         try:
             boottest.restore(p)
@@ -2762,7 +2918,7 @@ def scheduler_tick(now: float | None = None):
                 st["warned"] = False
         else:
             st.pop("clear_at", None)
-        # --- だれもいなくなったら自動で止める ---
+        # --- 誰もいなくなったら自動で止める ---
         stop_min = int(p.get("auto_stop_min", 0) or 0)
         if stop_min > 0:
             t = trackers.get(id)
@@ -2772,8 +2928,8 @@ def scheduler_tick(now: float | None = None):
                 st.setdefault("empty_since", max(now, st["since"]))
                 left = st["empty_since"] + stop_min * 60 - now
                 if left <= 0:
-                    con.add(f"⏻ だれもいない時間が {stop_min}分 続いたので、サーバーを自動で止めます")
-                    admin.audit(p.dir, "自動停止", f"{stop_min}分だれもいなかった")
+                    con.add(f"⏻ 誰もいない時間が {stop_min}分 続いたので、サーバーを自動で止めます")
+                    admin.audit(p.dir, "自動停止", f"{stop_min}分誰もいなかった")
                     st.clear()
                     threading.Thread(target=r.stop, daemon=True).start()
         else:
@@ -2887,6 +3043,19 @@ def _state_notify(id, state, r):
             _notify(id, "stop", "⚪ サーバーが止まりました")
 
 
+def _online_text(id, add=None, drop=None) -> str:
+    """通知に出す「今いる人」。"""
+    r = runners.get(id)
+    names = set(r.players) if r else set()
+    if add:
+        names.add(add)
+    if drop:
+        names.discard(drop)
+    if not names:
+        return "今は誰もいません（0人）"
+    return f"今いる人（{len(names)}人）: " + "、".join(sorted(names, key=str.lower))
+
+
 def _watch_line(id, line):
     if "logged in with entity id" in line:
         m = watch.LOGIN_RE.search(line)
@@ -2901,16 +3070,14 @@ def _watch_line(id, line):
         m = watch.JOIN_RE.search(line)
         if m:
             _play(id).join(m.group(1))
-            r = runners.get(id)
-            n = len(r.players) + (0 if r and m.group(1) in r.players else 1) if r else 1
-            _notify(id, "join", f"👋 {m.group(1)} が入りました", f"今 {n}人")
+            _notify(id, "join", f"👋 {m.group(1)} が入りました", _online_text(id, add=m.group(1)))
             _send_rules(id, m.group(1))
         return False
     if " left the game" in line:
         m = watch.LEFT_RE.search(line)
         if m:
             _play(id).leave(m.group(1))
-            _notify(id, "join", f"🚪 {m.group(1)} が出ました")
+            _notify(id, "join", f"🚪 {m.group(1)} が出ました", _online_text(id, drop=m.group(1)))
         return False
     ev = watch.parse_reject(line)
     if ev:
@@ -2919,8 +3086,8 @@ def _watch_line(id, line):
             ev["ip"] = gw.real_ip(ev["port"]) or ev["ip"]
         ev["kind"] = "rejected"
         if _intr(id).add(ev):
-            who = ev.get("name") or "だれか"
-            msg = f"{who}（{ev.get('ip') or 'IP不明'}）が入ろうとしました（{ev['reason']}ので、ことわりました）"
+            who = ev.get("name") or "誰か"
+            msg = f"{who}（{ev.get('ip') or 'IP不明'}）が入ろうとしました（{ev['reason']}ので、断りました）"
             consoles.setdefault(id, Console()).add("🚨 " + msg)
             _notify(id, "intrusion", "🚨 知らない人が入ろうとしました", msg, desktop=True)
     return False
@@ -2930,8 +3097,8 @@ def _gateway_event(id, kind, ip, info=None):
     ev = {"kind": kind, "ip": ip, "name": None, "time": time.time(),
           "reason": {"blocked": "IP BAN している", "flood": "短い時間に何度もつないできた"}.get(kind, kind)}
     if _intr(id).add(ev):
-        msg = (f"BAN している IP（{ip}）からつなごうとしたので、ことわりました" if kind == "blocked"
-               else f"{ip} から1分に {info.get('count') if info else '?'}回以上つないできたので、5分間ことわります（いたずら・攻撃かもしれません）")
+        msg = (f"BAN している IP（{ip}）からつなごうとしたので、断りました" if kind == "blocked"
+               else f"{ip} から1分に {info.get('count') if info else '?'}回以上つないできたので、5分間断ります（いたずら・攻撃かもしれません）")
         consoles.setdefault(id, Console()).add("🚨 " + msg)
         _notify(id, "intrusion", "🚨 あやしいアクセス", msg, desktop=kind == "flood")
 
@@ -2960,9 +3127,9 @@ def _lag_hook(id, r, now):
         st["low_since"] = st["low_since"] or now
         if now - st["low_since"] >= 120 and now - st["notified"] > 1800:
             st["notified"] = now
-            consoles.setdefault(id, Console()).add(f"🐢 サーバーが重くなっています（TPS {mon.tps:.1f}）。「重さ・最適化」タブで原因をさがせます")
+            consoles.setdefault(id, Console()).add(f"🐢 サーバーが重くなっています（TPS {mon.tps:.1f}）。「重さ・最適化」タブで原因を探せます")
             _notify(id, "lag", "🐢 サーバーが重くなっています", f"TPS {mon.tps:.1f}（20 が快適）が2分以上続いています。"
-                    "「重さ・最適化」タブで原因をさがせます。")
+                    "「重さ・最適化」タブで原因を探せます。")
     else:
         st["low_since"] = None
 
@@ -3020,7 +3187,7 @@ def intrusions_get(id):
 
 
 def applicants(id):
-    """「入りたい」と来た人（ホワイトリストにいなくて、ことわられた人）の一覧。承認すると名簿に入る。"""
+    """「入りたい」と来た人（ホワイトリストにいなくて、断られた人）の一覧。承認すると名簿に入る。"""
     p = _prof(id)
     have = {str(e.get("name", "")).lower() for e in server.read_list(p, "whitelist")}
     gone = {str(n).lower() for n in (p.get("applicant_dismissed") or [])}
@@ -3120,13 +3287,13 @@ def public_info(id):
 
 
 def _port_mismatch(address, port) -> bool:
-    """アドレスに書いたポート番号が、サーバーのポート番号とちがう（ポート開放・同じWi-Fiのとき）。"""
+    """アドレスに書いたポート番号が、サーバーのポート番号と違う（ポート開放・同じWi-Fiのとき）。"""
     try:
         host, aport, explicit = mcping.parse_address(address)
     except ValueError:
         return False
     if not address or not re.fullmatch(r"[\d.]+", host):
-        return False  # playit などのドメインは、ポートがちがって普通
+        return False  # playit などのドメインは、ポートが違って普通
     return (aport if explicit else 25565) != port
 
 
@@ -3147,6 +3314,21 @@ def playit_toggle():
         playit_proc = network.start_playit(job.write)
         return {"playit": True}
     return start_job("playit を準備しています", work)
+
+
+def net_diagnose(id):
+    """ネットワーク診断：この回線で、友達を呼ぶのにどの方法が使えるかを調べる。"""
+    p = _prof(id)
+    port = int(p.props().get("server-port", "25565") or 25565)
+
+    def work(job):
+        d = network.diagnose(port, job.write)
+        d["playit"] = bool(playit_proc and playit_proc.poll() is None)
+        d["address"] = p.get("public_address") or ""
+        if d["ipv4"]:
+            d["ipv4"] = str(d["ipv4"])
+        return d
+    return start_job("ネットワークを調べています", work)
 
 
 def upnp_open(id):
@@ -3184,9 +3366,9 @@ def server_ping(address):
     try:
         return mcping.ping(address)
     except socket.gaierror:
-        msg = "アドレスが見つかりません（打ちまちがいがないか確認してください）"
+        msg = "アドレスが見つかりません（打ち間違いがないか確認してください）"
     except ConnectionRefusedError:
-        msg = "相手は見つかりましたが、サーバーが動いていないか、ポート番号がちがいます"
+        msg = "相手は見つかりましたが、サーバーが動いていないか、ポート番号が違います"
     except (TimeoutError, socket.timeout):
         msg = "時間切れです（外から届いていません。playit が動いているか、ポート開放ができているか確認してください）"
     except ValueError:
@@ -3201,7 +3383,7 @@ def global_ip():
 
 
 def reach_test(id, address=None):
-    """外から届くか（外のサービスに試してもらう）＋届かないときの原因さがし。"""
+    """外から届くか（外のサービスに試してもらう）＋届かないときの原因探し。"""
     p = _prof(id)
     port = int(p.props().get("server-port", "25565") or 25565)
     address = (address or p.get("public_address") or "").strip()
@@ -3235,7 +3417,7 @@ def reach_test(id, address=None):
                     hints.append("この回線は、外から直接入れない回線（マンションの共有回線・CGNAT など）かもしれません。その場合は playit.gg を使ってください。")
         res["message"] = "外から届いていません。"
     if res.get("cached"):
-        hints.append("※ テスト用のサービスは結果を数分おぼえています。設定を変えた直後は、少し待ってからもう一度試してください。")
+        hints.append("※ テスト用のサービスは結果を数分覚えています。設定を変えた直後は、少し待ってからもう一度試してください。")
     res["hints"] = hints
     return res
 
@@ -3334,7 +3516,7 @@ def member_add(id, kind, name):
     r = runners.get(id)
     if r and r.running:
         try:
-            name = server.lookup_uuid(name)[0]  # 名前がまちがっていないか先に確かめる
+            name = server.lookup_uuid(name)[0]  # 名前が間違っていないか先に確かめる
         except ValueError as e:
             raise UserError(str(e)) from e
         except net.NetError:
@@ -3417,7 +3599,7 @@ def rollback_targets(id):
 
 
 def rollback(id, file):
-    """サーバーを止めて → 今のワールドを念のため保存 → 選んだバックアップにもどす → 動いていたら起動し直す。"""
+    """サーバーを止めて → 今のワールドを念のため保存 → 選んだバックアップに戻す → 動いていたら起動し直す。"""
     p = _prof(id)
     path = os.path.join(server.backups_dir(p), os.path.basename(file or ""))
     if not file or not os.path.exists(path):
@@ -3443,7 +3625,7 @@ def rollback(id, file):
         if os.path.isdir(p.world_dir()):
             job.write("念のため、今のワールドを保存しています（巻き戻し前）…")
             server.make_backup(p, "before-rollback")
-        job.write(f"{os.path.basename(path)} にもどしています…")
+        job.write(f"{os.path.basename(path)} に戻しています…")
         server.restore_backup(p, path)
         admin.audit(p.dir, "ワールドを巻き戻し", os.path.basename(path))
         if was_running:
@@ -3725,7 +3907,7 @@ def preflight(id):
         items.append(F("ok", "MODの必要な部品: そろっています"))
     # 安全
     if p.props().get("white-list", "false") != "true":
-        items.append(F("warn", "ホワイトリストがOFFです", "アドレスを知っている人は、だれでも入れます。", "「メンバー・BAN」タブでONにできます。"))
+        items.append(F("warn", "ホワイトリストがOFFです", "アドレスを知っている人は、誰でも入れます。", "「メンバー・BAN」タブでONにできます。"))
     if not p.get("public_address"):
         items.append(F("info", "友達に伝えるアドレスが、まだ決まっていません", "このPCの中だけで遊ぶなら、そのままで大丈夫です。", "「友達を呼ぶ」タブで準備できます。"))
     last = next((server.backup_time(b) for b in server.list_backups(p)), None)
@@ -3813,6 +3995,55 @@ def _schedule_tick(now):
 
 
 # ---------------- よく使うコマンドのボタン ----------------
+
+VANILLA_CMDS = set("""advancement attribute ban ban-ip banlist bossbar clear clone damage data datapack debug defaultgamemode deop
+difficulty effect enchant execute experience fill fillbiome forceload function gamemode gamerule give help item jfr kick kill list locate
+loot me msg op pardon pardon-ip particle perf place playsound publish random recipe reload return ride rotate save-all save-off save-on say
+schedule scoreboard seed setblock setidletimeout setworldspawn spawnpoint spectate spreadplayers stop stopsound summon tag team teammsg
+teleport tell tellraw tick time title tm tp transfer trigger w weather whitelist worldborder xp test dialog waypoint stopwatch version
+fetchprofile""".split())
+_HELP_LINE = re.compile(r"(?:\]:\s*|^)/([A-Za-z0-9_:.\-]{1,40})(?:\s+(.{0,300}))?$")
+
+
+def commands_get(id):
+    """MODが足したコマンドの一覧（前に取り込んだもの）。"""
+    p = _prof(id)
+    r = runners.get(id)
+    return {"mod": [c for c in (p.get("mod_cmds") or []) if isinstance(c, dict)][:400], "time": p.get("mod_cmds_time") or 0,
+            "running": bool(r and r.state == "running")}
+
+
+def commands_scan(id):
+    """動いているサーバーに「help」を送って、MODが足したコマンドを取り込む。"""
+    p = _prof(id)
+    r = runners.get(id)
+    if not (r and r.state == "running"):
+        raise UserError("サーバーが動いているとき（起動完了のあと）に押してください。")
+    con = consoles.setdefault(id, Console())
+    _, mark = con.since(10 ** 9)
+    r.send("help")
+    found: dict[str, str] = {}
+    quiet, end = 0, time.time() + 6
+    while time.time() < end and quiet < 6:
+        time.sleep(0.25)
+        lines, mark2 = con.since(mark)
+        if mark2 == mark:
+            quiet += 1 if found else 0
+            continue
+        mark, quiet = mark2, 0
+        for ln in lines:
+            m = _HELP_LINE.search(ln.strip())
+            if m:
+                found.setdefault(m.group(1), (m.group(2) or "").strip())
+    if not found:
+        raise UserError("コマンドの一覧を読み取れませんでした。少し待ってから、もう一度押してください。")
+    mod = [{"name": n, "c": (n + " " + u).strip()} for n, u in sorted(found.items())
+           if n.split(":")[-1] not in VANILLA_CMDS and not n.startswith("minecraft:")]
+    names = {m["name"].split(":")[-1] for m in mod}
+    mod = [m for m in mod if ":" not in m["name"] or m["name"].split(":")[-1] not in (names - {m["name"]})][:400]
+    p.set(mod_cmds=mod, mod_cmds_time=time.time())
+    return {"mod": mod, "time": time.time(), "total": len(found), "running": True}
+
 
 def quick_cmds_get(id):
     return {"items": _prof(id).get("quick_cmds", []) or []}

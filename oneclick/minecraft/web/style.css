@@ -1,8 +1,8 @@
 /* OneClickServerMC — マイクラの画面（インベントリ・ブロック）をイメージしたデザイン
    暗いテーマ＝深層岩の夜 / 明るいテーマ＝インベントリ画面
-   色はすべて下の「変数」で決めているので、テーマの切りかえは変数を入れかえるだけ */
+   色はすべて下の「変数」で決めているので、テーマの切り替えは変数を入れ替えるだけ */
 
-/* ================= 暗いテーマ（はじめの値） ================= */
+/* ================= 暗いテーマ（始めの値） ================= */
 :root {
   color-scheme: dark;
   /* 面の色 */
@@ -15,7 +15,7 @@
   --panel-3: #4f5562;         /* さらに中 */
   --panel-img: url("img/stone.svg");
   --slot: #1b1d22;            /* アイテムのマス */
-  --edge: #0c0d10;            /* いちばん外の黒いふち */
+  --edge: #0c0d10;            /* 一番外の黒いふち */
   --hi: rgba(255,255,255,.16);/* 左上の光 */
   --lo: rgba(0,0,0,.45);      /* 右下の影 */
   --line: #555c6b;
@@ -285,7 +285,7 @@ hr.sep { border: 0; height: 3px; background: var(--lo); box-shadow: 0 3px 0 var(
 }
 .btn:hover { background: var(--btn-hover); box-shadow: 0 0 0 2px #fff, inset 3px 3px 0 rgba(255,255,255,.3), inset -3px -4px 0 rgba(0,0,0,.35); }
 .btn:active { transform: translateY(2px); box-shadow: 0 0 0 2px var(--edge), inset 3px 3px 0 rgba(0,0,0,.35), inset -2px -2px 0 rgba(255,255,255,.15); }
-/* 草ブロックのボタン（いちばん大事なボタン） */
+/* 草ブロックのボタン（一番大事なボタン） */
 .btn.primary {
   background: linear-gradient(var(--grass-top) 0 7px, #4b8a2e 7px 9px, var(--dirt) 9px);
   font-weight: 700; padding-top: 11px;
@@ -296,7 +296,7 @@ hr.sep { border: 0; height: 3px; background: var(--lo); box-shadow: 0 3px 0 var(
 /* エメラルドブロック（サーバーを動かす） */
 .btn.go { background: #1f9d58; font-weight: 700; }
 .btn.go:hover { background: #26b566; }
-/* レッドストーンブロック（あぶない操作） */
+/* レッドストーンブロック（危ない操作） */
 .btn.danger {
   background:
     linear-gradient(rgba(0,0,0,.18) 0 0) 6px 6px / 4px 4px no-repeat,
@@ -624,13 +624,13 @@ input[type=range] { width: 100%; accent-color: var(--grass); }
   animation: adv .25s steps(5);
 }
 .toast::before {
-  content: "おしらせ"; display: block; font-family: var(--pixel); font-size: 13px; color: #ffd84a; text-shadow: 2px 2px 0 #3f3500; margin-bottom: 1px;
+  content: "お知らせ"; display: block; font-family: var(--pixel); font-size: 13px; color: #ffd84a; text-shadow: 2px 2px 0 #3f3500; margin-bottom: 1px;
 }
 .toast::after {
   content: "✔"; position: absolute; left: 12px; top: 50%; translate: 0 -50%; width: 32px; height: 32px; display: grid; place-items: center;
   background: #3f8a26; color: #fff; font-weight: 900; box-shadow: 0 0 0 2px #000, inset 2px 2px 0 rgba(255,255,255,.35), inset -2px -2px 0 rgba(0,0,0,.35);
 }
-.toast.warn::before { content: "ちゅうい"; }
+.toast.warn::before { content: "注意"; }
 .toast.warn::after { content: "!"; background: #c9961f; }
 .toast.error::before { content: "うまくいきませんでした"; color: #ff8a80; text-shadow: 2px 2px 0 #3f0d08; }
 .toast.error::after { content: "✖"; background: #a82c24; }
@@ -689,7 +689,7 @@ input[type=range] { width: 100%; accent-color: var(--grass); }
 /* =====================================================================
    シンプルなデザイン（「見た目: シンプル」のとき）
    ・ドット絵やブロックの立体感をやめて、角の丸い・平らな見た目にする
-   ・明るい／暗いは、ほかと同じように切りかえられる
+   ・明るい／暗いは、ほかと同じように切り替えられる
    ===================================================================== */
 html[data-style="simple"] {
   color-scheme: dark;
@@ -1069,7 +1069,7 @@ label.col { display: flex; flex-direction: column; gap: 3px; }
 .player .nm { flex: 1 1 90px; min-width: 90px; }
 .player .cp { color: inherit; }
 
-.iic { width: 24px; height: 24px; image-rendering: pixelated; flex: none; object-fit: contain; vertical-align: middle; }
+.iic { width: 24px; height: 24px; image-rendering: pixelated; flex: none; object-fit: cover; object-position: top; vertical-align: middle; }
 .iic.ph { display: inline-grid; place-items: center; background: color-mix(in srgb, var(--edge) 18%, transparent); color: var(--muted, #888); font-size: 12px; border-radius: 4px; }
 .item-row { align-items: center; }
 .seg { display: inline-flex; gap: 4px; margin-right: 8px; }
@@ -1108,3 +1108,46 @@ html .page, html[data-style="simple"] .page { max-width: 1520px; }
 .chg ul { list-style: none; margin: 0; padding: 0; }
 .chg li { padding: 2px 0; }
 .chg li.add b { color: #16a34a; } .chg li.upd b { color: #2563eb; } .chg li.del b { color: #dc2626; }
+
+/* v2.6 タブの行（右に「機能を探す」）・小見出し・読みやすさ */
+.tabs-row { display: flex; align-items: flex-end; gap: 16px; margin-top: 18px; border-bottom: 2px solid var(--line, rgba(128,128,128,.3)); }
+.tabs-row .tabs.grp { margin: 0 0 -2px; border-bottom: 0; flex: 1 1 auto; min-width: 0; }
+.feat { position: relative; flex: 0 1 300px; margin-bottom: 8px; }
+.feat input { width: 100%; padding: 8px 12px; font-size: 14px; border-radius: 999px; }
+.feat-list { position: absolute; right: 0; top: calc(100% + 6px); width: min(420px, 92vw); z-index: 40; background: var(--panel, #fff); border: 1px solid var(--line, rgba(128,128,128,.35)); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.25); padding: 6px; }
+.feat-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; font: inherit; background: transparent; border: 0; border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--bone); }
+.feat-item span { font-size: 12px; color: var(--muted); }
+.feat-item.on, .feat-item:hover { background: color-mix(in srgb, var(--accent, #12a36b) 14%, transparent); }
+.feat-none { padding: 10px; font-size: 13px; color: var(--muted); }
+.subtab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; }
+.subtab[aria-selected="true"] { box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #12a36b) 35%, transparent); }
+html .tab-body h2 { font-size: 20px; margin-top: 4px; }
+html .tab-body h3 { font-size: 16px; }
+html .tab-body .panel, html .tab-body .sec { margin-bottom: 16px; }
+html .tab-body .small { font-size: 13px; }
+html .tab-body .hint { font-size: 13px; line-height: 1.6; }
+@media (max-width: 860px) { .tabs-row { flex-direction: column-reverse; align-items: stretch; gap: 6px; } .feat { flex: none; margin-bottom: 0; } }
+
+/* コピーのボタンを、ボタンらしく見せる */
+.cp { border: 1px solid var(--line, rgba(128,128,128,.35)); border-radius: 8px; background: var(--panel-3, transparent); white-space: nowrap; }
+.cp::before { content: "⧉"; margin-right: 4px; opacity: .7; }
+
+/* 使い方ページ（実際の画面の画像つき） */
+.howto { margin: 28px 0; padding-top: 8px; scroll-margin-top: 12px; }
+.howto h2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.howto-toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
+.howto-body { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 20px; align-items: start; margin-top: 10px; }
+.howto-img { padding: 0; border: 1px solid var(--line, rgba(128,128,128,.35)); border-radius: 12px; overflow: hidden; background: #fff; cursor: zoom-in; box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+.howto-img img { display: block; width: 100%; height: auto; }
+.howto-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.howto-steps li { display: flex; gap: 12px; align-items: flex-start; line-height: 1.7; }
+.howto-steps .num { flex: none; width: 30px; height: 30px; border-radius: 50%; background: #e23d34; color: #fff; font-weight: 800; display: grid; place-items: center; }
+.modal.wide:has(img[src^="/static/guide/"]) { max-width: min(1320px, 96vw); width: 96vw; }
+@media (max-width: 1000px) { .howto-body { grid-template-columns: 1fr; } }
+/* 見出しの横に説明文が回りこまないようにする（広い画面） */
+html .page > h1:first-child { display: table; }
+
+/* Discord ボットの設定（手順ごとの枠） */
+.bstep { border: 1px solid var(--line, #555c6b); border-radius: 12px; padding: 14px 16px; background: var(--panel, rgba(128,128,128,.06)); }
+.bstep > h3 { margin: 0 0 6px; font-size: 1.02rem; }
+.bstep select, .bstep input[type=text], .bstep input[type=password] { max-width: 100%; }

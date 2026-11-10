@@ -142,7 +142,7 @@ def parse_reject(line: str) -> dict | None:
 
 
 class Intrusions:
-    """入ろうとしてことわられた人の記録（同じ人の通知は10分に1回まで）。"""
+    """入ろうとして断られた人の記録（同じ人の通知は10分に1回まで）。"""
 
     FILE = "mcmh-intrusions.json"
 
@@ -184,7 +184,7 @@ LEFT_RE = re.compile(r"\]:\s*([A-Za-z0-9_]{2,16}) left the game")
 
 
 class Playtime:
-    """だれが・いつ・何分遊んだか（サーバーごと）。"""
+    """誰が・いつ・何分遊んだか（サーバーごと）。"""
 
     FILE = "mcmh-playtime.json"
 

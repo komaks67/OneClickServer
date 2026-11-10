@@ -14,6 +14,11 @@
 - 設定は `data/minecraft/settings.json` の `discord_bot`(トークンは Windows の DPAPI で暗号化)
 - コードは `oneclick/discordbot.py`(通信・カード)と `oneclick/discordhub.py`(4ゲームのつなぎ口)、画面は `oneclick/web/discord.js`
 
+## 3.2.0 の変更
+- マイクラ部分を旧 OneClickServerMC(2.8.0)の全機能に合わせた(MOD巻き戻し・起動前チェック・コマンド一覧・MODアイコン・参加前チェック・ネットワーク診断・ガイド画像・安全面の強化など)
+- Discord の「サーバーが起動しました」が、人の出入りのたびに何度も出る不具合を修正
+- 誤字(ぶ使って → ぶつかって)を修正
+
 ## 開発
 ```
 python -m unittest discover -s tests -v   # 自動テスト

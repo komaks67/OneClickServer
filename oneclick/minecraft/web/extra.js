@@ -91,7 +91,7 @@ function paintLag(root, tps, status) {
   if (!el) return;
   if (status === "running" && tps != null && tps < 12) {
     el.hidden = false;
-    el.innerHTML = `<b>サーバーが重くなっています（TPS ${Number(tps).toFixed(1)}。20 が快適）</b><div class="small">「重さ・最適化」タブで、原因をさがせます。</div>
+    el.innerHTML = `<b>サーバーが重くなっています（TPS ${Number(tps).toFixed(1)}。20 が快適）</b><div class="small">「重さ・最適化」タブで、原因を探せます。</div>
       <div class="row" style="margin-top:8px"><button class="btn sm" data-lagtab>重さの診断を見る</button></div>`;
     $("[data-lagtab]", el).onclick = () => { S.tab = "perf"; viewServer($("#main")); };
   } else el.hidden = true;
@@ -172,7 +172,7 @@ const CMD_DICT = [
   { c: "difficulty normal", ja: "難しさを「ノーマル」にする", g: "world" }, { c: "difficulty hard", ja: "難しさを「ハード」にする", g: "world" },
   { c: "gamerule keepInventory true", ja: "死んでも持ち物を落とさない", g: "world" }, { c: "gamerule keepInventory false", ja: "死んだら持ち物を落とす（普通）", g: "world" },
   { c: "gamerule doDaylightCycle false", ja: "時間を止める（ずっと同じ明るさ）", g: "world" }, { c: "gamerule doDaylightCycle true", ja: "時間を動かす（普通）", g: "world" },
-  { c: "gamerule mobGriefing false", ja: "クリーパーなどが地形をこわさないようにする", g: "world" }, { c: "gamerule doMobSpawning false", ja: "敵や動物が自然に出ないようにする", g: "world" },
+  { c: "gamerule mobGriefing false", ja: "クリーパーなどが地形を壊さないようにする", g: "world" }, { c: "gamerule doMobSpawning false", ja: "敵や動物が自然に出ないようにする", g: "world" },
   { c: "setworldspawn", ja: "いまの場所を、ワールドの出発地点にする（本人がコンソールでは使えません）", g: "world" },
   { c: "worldborder set <大きさ>", ja: "行ける範囲を決める（例: worldborder set 5000）", g: "world" },
   { c: "seed", ja: "ワールドの「シード値」を見る", g: "world" },
@@ -180,7 +180,7 @@ const CMD_DICT = [
   // プレイヤー
   { c: "list", ja: "いま遊んでいる人の一覧", g: "people" },
   { c: "gamemode survival <名前>", ja: "サバイバルにする", g: "people", p: true }, { c: "gamemode creative <名前>", ja: "クリエイティブにする（何でも置ける・飛べる）", g: "people", p: true },
-  { c: "gamemode adventure <名前>", ja: "アドベンチャーにする（ブロックをこわせない）", g: "people", p: true }, { c: "gamemode spectator <名前>", ja: "スペクテイターにする（見るだけ）", g: "people", p: true },
+  { c: "gamemode adventure <名前>", ja: "アドベンチャーにする（ブロックを壊せない）", g: "people", p: true }, { c: "gamemode spectator <名前>", ja: "スペクテイターにする（見るだけ）", g: "people", p: true },
   { c: "tp <名前> <行き先の名前>", ja: "1人目を、2人目のところへ移動させる", g: "people", p: true }, { c: "tp <名前> <x> <y> <z>", ja: "決めた座標へ移動させる", g: "people", p: true },
   { c: "give <名前> <アイテムID> 1", ja: "アイテムをあげる（IDは「コマンド」タブの一覧でコピーできます）", g: "people", p: true },
   { c: "clear <名前>", ja: "持ち物を、全部消す", g: "people", p: true, danger: true }, { c: "kill <名前>", ja: "その人を倒す（やり直し用）", g: "people", p: true, danger: true },
@@ -191,7 +191,7 @@ const CMD_DICT = [
   { c: "op <名前>", ja: "OP（管理者）にする", g: "manage", p: true }, { c: "deop <名前>", ja: "OPをやめさせる", g: "manage", p: true },
   { c: "whitelist add <名前>", ja: "ホワイトリスト（入っていい人）に追加", g: "manage", p: true }, { c: "whitelist remove <名前>", ja: "ホワイトリストから外す", g: "manage", p: true },
   { c: "whitelist list", ja: "ホワイトリストの一覧", g: "manage" }, { c: "whitelist on", ja: "ホワイトリストを使う（名簿の人だけ入れる）", g: "manage" },
-  { c: "whitelist off", ja: "ホワイトリストをやめる（だれでも入れる・注意）", g: "manage", danger: true },
+  { c: "whitelist off", ja: "ホワイトリストをやめる（誰でも入れる・注意）", g: "manage", danger: true },
   { c: "kick <名前>", ja: "サーバーから追い出す（また入れます）", g: "manage", p: true, danger: true },
   { c: "ban <名前>", ja: "二度と入れなくする", g: "manage", p: true, danger: true }, { c: "pardon <名前>", ja: "BANを解除する", g: "manage", p: true },
   { c: "ban-ip <IPアドレス>", ja: "IPアドレスで入れなくする", g: "manage", danger: true }, { c: "pardon-ip <IPアドレス>", ja: "IPアドレスのBANを解除する", g: "manage" },
@@ -199,7 +199,68 @@ const CMD_DICT = [
   { c: "save-all", ja: "ワールドを、いま保存する", g: "manage" }, { c: "stop", ja: "サーバーを止める（保存してから止まります）", g: "manage", danger: true },
   { c: "help", ja: "使えるコマンドの一覧を見る", g: "manage" },
 ];
-CMD_DICT.forEach((x) => { x.tpl = x.c.split("<")[0]; x.key = (x.c + " " + x.ja).toLowerCase(); });
+// バニラの全コマンド（上の「よく使う」に入っていないものも、すべて）
+const CMD_ALL = [
+  ["advancement grant <名前> everything", "進捗（実績）を、全部与える"], ["advancement revoke <名前> everything", "進捗（実績）を、全部取り消す"],
+  ["attribute <名前> <属性> get", "体力・速さなどの「能力の数字」を見る・変える"],
+  ["bossbar add <ID> <名前>", "画面の上に出るバー（ボスの体力バー）を作る"], ["bossbar list", "作ったバーの一覧"],
+  ["clone <x1> <y1> <z1> <x2> <y2> <z2> <x> <y> <z>", "ブロックのかたまりを、別の場所にコピーする"],
+  ["damage <名前> <数>", "ダメージを与える"], ["data get entity <名前>", "プレイヤーなどの、詳しいデータ（NBT）を見る"],
+  ["datapack list", "入っているデータパックの一覧"], ["datapack enable <名前>", "データパックをONにする"], ["datapack disable <名前>", "データパックをOFFにする"],
+  ["debug start", "重さの記録を始める（debug stop で終わり）"], ["defaultgamemode <モード>", "新しく入った人のゲームモードを決める"],
+  ["enchant <名前> <エンチャントID> <レベル>", "手に持っている道具に、エンチャントをつける"],
+  ["execute as <名前> at @s run <コマンド>", "誰かの立場・場所で、コマンドを実行する"],
+  ["experience add <名前> <数> levels", "経験値を足す（xp と同じ）"], ["experience query <名前> levels", "いまのレベルを見る"],
+  ["fill <x1> <y1> <z1> <x2> <y2> <z2> <ブロックID>", "決めた範囲を、ブロックで埋める"],
+  ["fillbiome <x1> <y1> <z1> <x2> <y2> <z2> <バイオームID>", "決めた範囲のバイオームを変える"],
+  ["forceload add <x> <z>", "その場所を、人がいなくても動かし続ける"], ["forceload query", "動かし続けている場所の一覧"],
+  ["function <名前>", "データパックの「関数」を実行する"], ["gamerule <ルール名> <値>", "ゲームのルールを変える（一覧は「ルール・地図」タブ）"],
+  ["item replace entity <名前> <場所> with <アイテムID>", "持ち物の決めた場所を、アイテムに入れ替える"],
+  ["jfr start", "詳しい動作の記録を始める（上級者向け）"],
+  ["locate structure <建物ID>", "一番近い建物（村など）の場所を探す"], ["locate biome <バイオームID>", "一番近いバイオームを探す"],
+  ["loot give <名前> loot <ルートテーブル>", "宝箱の中身などの「戦利品」を与える"], ["me <ことば>", "「* 名前 ことば」の形で、みんなに表示する"],
+  ["particle <パーティクルID> <x> <y> <z>", "光や煙などの「つぶ」を出す"], ["perf start", "10秒間の重さを記録する（上級者向け）"],
+  ["place structure <建物ID>", "建物を、その場に作る"], ["place feature <ID>", "木や鉱石などを、その場に作る"],
+  ["playsound <音ID> master <名前>", "音を鳴らす"], ["stopsound <名前>", "鳴っている音を止める"],
+  ["publish", "LANに公開する（サーバーでは使いません）"], ["random value 1..6", "ランダムな数を出す（サイコロ）"],
+  ["recipe give <名前> *", "全部のレシピを、覚えさせる"], ["recipe take <名前> *", "覚えたレシピを、全部忘れさせる"],
+  ["reload", "データパックを読み込み直す"], ["return <数>", "関数の中で使う（結果を返す）"],
+  ["ride <名前> mount <乗り物>", "プレイヤーを乗り物に乗せる"], ["rotate <名前> <左右> <上下>", "向きを変える"],
+  ["save-off", "自動保存を止める（バックアップ中に使う）"], ["save-on", "自動保存を再開する"],
+  ["schedule function <名前> <時間>", "関数を、あとで実行するように予約する"],
+  ["scoreboard objectives add <名前> dummy", "スコア（得点表）を作る"], ["scoreboard objectives list", "スコアの一覧"],
+  ["scoreboard players set <名前> <スコア名> <数>", "スコアの数字を決める"],
+  ["setblock <x> <y> <z> <ブロックID>", "1か所にブロックを置く"], ["setidletimeout <分>", "動かない人を、自動で追い出すまでの時間"],
+  ["spectate <見る相手> <名前>", "スペクテイターの人に、誰かの目線を見せる"],
+  ["spreadplayers <x> <z> <間かく> <広さ> false @a", "みんなを、ばらばらの場所に飛ばす"],
+  ["summon <モブID>", "モブ（動物や敵）を出す"], ["summon <モブID> <x> <y> <z>", "決めた場所にモブを出す"],
+  ["tag <名前> add <タグ>", "プレイヤーに「目印（タグ）」をつける"], ["tag <名前> list", "ついているタグの一覧"],
+  ["team add <チーム名>", "チームを作る"], ["team join <チーム名> <名前>", "チームに入れる"], ["team list", "チームの一覧"],
+  ["teammsg <ことば>", "同じチームの人にだけ、メッセージを送る（tm も同じ）"],
+  ["teleport <名前> <x> <y> <z>", "決めた場所へ移動させる（tp と同じ）"], ["tell <名前> <ことば>", "その人にだけメッセージ（msg・w と同じ）"],
+  ["tellraw <名前> {\"text\":\"こんにちは\",\"color\":\"gold\"}", "色つきのメッセージを送る"],
+  ["tick query", "サーバーの速さ（TPS）を見る"], ["tick rate <数>", "ゲームの速さを変える（普通は20）"],
+  ["tick freeze", "ゲームの時間を止める"], ["tick unfreeze", "止めた時間を動かす"], ["tick sprint <時間>", "決めた時間を、早送りする"],
+  ["time add <数>", "時間を進める"], ["time query daytime", "いまの時刻を見る"], ["time set <数>", "時刻を数字で決める（0＝朝、6000＝昼、13000＝夜）"],
+  ["title <名前> title {\"text\":\"スタート！\"}", "画面の真ん中に、大きな文字を出す"], ["title <名前> clear", "出した文字を消す"],
+  ["transfer <アドレス>", "プレイヤーを、別のサーバーへ移動させる"], ["trigger <スコア名>", "普通の人でも変えられるスコアを動かす"],
+  ["weather clear <秒>", "決めた時間だけ晴れにする"], ["worldborder get", "行ける範囲の広さを見る"],
+  ["worldborder center <x> <z>", "行ける範囲の真ん中を決める"], ["worldborder add <数> <秒>", "行ける範囲を、少しずつ広げる・狭める"],
+  ["xp query <名前> levels", "いまのレベルを見る"], ["effect give <名前> <効果ID> <秒> <強さ>", "好きな効果をつける"],
+  ["give <名前> <アイテムID> <個数>", "アイテムを、好きな数だけあげる"], ["kill @e[type=!player]", "プレイヤー以外を、全部消す（動物も消えます）", true],
+  ["list uuids", "遊んでいる人の一覧（IDつき）"], ["save-all flush", "ワールドを、すぐに確実に保存する"],
+  ["difficulty", "いまの難しさを見る"], ["gamerule keepInventory", "ルールの、いまの値を見る"], ["whitelist reload", "ホワイトリストのファイルを読み込み直す"],
+  ["ban <名前> <理由>", "理由をつけてBANする", true], ["kick <名前> <理由>", "理由をつけて追い出す", true],
+];
+CMD_ALL.forEach(([c, ja, danger]) => { if (!CMD_DICT.some((x) => x.c === c)) CMD_DICT.push({ c, ja, g: "all", danger: !!danger, p: c.includes("<名前>") }); });
+CMD_GROUPS.push(["all", "そのほかの全コマンド（バニラ）"], ["mod", "MODのコマンド（サーバーから取り込んだもの）"]);
+const cmdIndex = (x) => { x.tpl = x.c.split("<")[0]; x.key = (x.c + " " + x.ja).toLowerCase(); return x; };
+CMD_DICT.forEach(cmdIndex);
+// MODのコマンド（サーバーに help を送って取り込んだもの）を、辞典と入力の候補に足す
+function setModCmds(list) {
+  for (let i = CMD_DICT.length - 1; i >= 0; i--) if (CMD_DICT[i].g === "mod") CMD_DICT.splice(i, 1);
+  (list || []).forEach((m) => CMD_DICT.push(cmdIndex({ c: m.c, ja: "MODのコマンドです（詳しい使い方は、そのMODの説明を見てください）", g: "mod" })));
+}
 
 function cmdMatches(q, n = 8) {
   q = q.replace(/^\//, "").toLowerCase().trim();
@@ -296,9 +357,10 @@ async function renderQuick(el, s, send) {
 function renderCmdDict(el, s, running) {
   const row = (x) => `<div class="dict-row"><div><code>${esc(x.c)}</code>${x.danger ? ' <span class="badge warn">注意</span>' : ""}<div class="small muted">${esc(x.ja)}</div></div>
     <div class="acts">${cpBtn(x.c, "コピー", "コマンド")}</div></div>`;
-  el.innerHTML = `<div class="row"><h3 class="grow">コマンド辞典</h3></div>
-    <p class="muted small" style="margin:6px 0">よく使うコマンドの意味です。<b>&lt;名前&gt;</b> のところは、自分で入れかえます。ホーム画面の入力欄に入れると、候補も出ます。</p>
-    <input type="text" data-dq placeholder="さがす（例: 天気、creative、BAN）"><div data-dl style="margin-top:8px"></div>`;
+  el.innerHTML = `<div class="row"><h3 class="grow">コマンド辞典</h3><span class="small muted" data-dcount></span>
+      <button class="btn sm" data-dscan ${running ? "" : "disabled"} title="動いているサーバーに help を送って、MODが足したコマンドを取り込みます">MODのコマンドを取り込む</button></div>
+    <p class="muted small" style="margin:6px 0">よく使うコマンドの意味です。<b>&lt;名前&gt;</b> のところは、自分で入れ替えます。ホーム画面の入力欄に入れると、候補も出ます。</p>
+    <input type="text" data-dq placeholder="探す（例: 天気、creative、BAN）"><div data-dl style="margin-top:8px"></div>`;
   const paint = () => {
     const q = $("[data-dq]", el).value.trim().toLowerCase();
     const words = q.split(/\s+/).filter(Boolean);
@@ -308,7 +370,18 @@ function renderCmdDict(el, s, running) {
     }).join("") || `<div class="faint small">見つかりません</div>`;
   };
   $("[data-dq]", el).addEventListener("input", paint);
-  paint();
+  const count = () => { $("[data-dcount]", el).textContent = `全部で ${CMD_DICT.length}個（MOD ${CMD_DICT.filter((x) => x.g === "mod").length}個）`; };
+  paint(); count();
+  api("commands_get", { id: s.id }).then((r) => { setModCmds(r.mod); paint(); count(); }).catch(() => {});
+  $("[data-dscan]", el).onclick = async (ev) => {
+    const b = ev.currentTarget; b.disabled = true; b.textContent = "取り込んでいます…";
+    try {
+      const r = await api("commands_scan", { id: s.id });
+      setModCmds(r.mod); paint(); count();
+      toast(r.mod.length ? `MODのコマンドを ${r.mod.length}個 取り込みました` : "MODが足したコマンドは、ありませんでした");
+    } catch (e) { fail(e); }
+    b.disabled = false; b.textContent = "MODのコマンドを取り込む";
+  };
 }
 
 // ================================================================ 予約（曜日と時刻で、起動・停止）
@@ -317,7 +390,7 @@ async function renderSchedule(el, s) {
   try { d = await api("schedule_get", { id: s.id }); } catch (e) { el.innerHTML = `<div class="note warn">${esc(e.message)}</div>`; return; }
   const DAYS = "月火水木金土日";
   el.innerHTML = `<h2>予約（決めた時刻に、起動・停止）</h2>
-    <p class="muted" style="max-width:76ch">「毎週 金・土の19:00に起動、23:30に停止」のように決められます。停止の5分前と1分前には、ゲームの中にお知らせが出ます。<b>予約は、このソフトが起動しているあいだだけ動きます</b>（PCの電源が入っていて、ソフトを閉じていないこと。「PCを起動したら、サーバーも起動」と組み合わせると便利です）。</p>
+    <p class="muted" style="max-width:76ch">「毎週 金・土の19:00に起動、23:30に停止」のように決められます。停止の5分前と1分前には、ゲームの中にお知らせが出ます。<b>予約は、このソフトが起動している間だけ動きます</b>（PCの電源が入っていて、ソフトを閉じていないこと。「PCを起動したら、サーバーも起動」と組み合わせると便利です）。</p>
     <div class="stack" style="margin:10px 0;gap:6px">${d.texts.map((t, i) => `<div class="row" style="gap:12px;padding:8px 12px;background:var(--panel-2, rgba(128,128,128,.12))"><span class="grow"><b>⏰ ${esc(t)}</b></span><button class="btn sm ghost" style="flex:none;width:auto" data-sdel="${i}">消す</button></div>`).join("") || `<p class="faint small">予約はまだありません</p>`}</div>
     <div class="panel"><h3>予約を足す</h3>
       <div class="row" style="margin:8px 0;gap:10px" data-days>${[...DAYS].map((n, i) => `<label class="check"><input type="checkbox" value="${i}"> ${n}</label>`).join("")}
@@ -331,7 +404,7 @@ async function renderSchedule(el, s) {
   $("[data-sadd]", el).onclick = () => {
     const days = $$("[data-days] input:checked", el).map((c) => +c.value);
     const start = $("[data-st]", el).value, stop = $("[data-sp]", el).value;
-    if (!days.length) return toast("曜日を1つ以上えらんでください", "warn");
+    if (!days.length) return toast("曜日を1つ以上選んでください", "warn");
     if (!start && !stop) return toast("起動か停止の時刻を入れてください", "warn");
     save([...d.rules, { days, start, stop }]);
   };
@@ -469,4 +542,102 @@ function changesHtml(c) {
   ];
   if (!rows.length) rows.push(`<li class="upd"><b>設定ファイルなど</b> が変わりました（MODの数は同じです）</li>`);
   return `<div class="chg"><div class="chg-h">🔔 サーバーのMODが変わりました</div><ul>${rows.join("")}</ul></div>`;
+}
+
+
+// ================ 友達側：参加前チェックの結果 ================
+function precheckHtml(c) {
+  if (!c || c.status === "unknown") return "";
+  if (c.status === "ok") return `<p class="badge ok" style="display:inline-block">✅ MODはサーバーと同じです（${c.count}個）</p>`;
+  if (c.status === "fixed") return `<div class="note ok">✅ 足りなかったMODを ${c.fixed.length}個 入れ直しました。<div class="small muted">${esc(c.fixed.slice(0, 6).join("、"))}</div></div>`;
+  const bad = [...(c.missing || []), ...(c.broken || [])];
+  return `<div class="note warn">⚠ MODが ${bad.length}個 足りません。このままだと、サーバーに入れないかもしれません。
+    <div class="small">${esc(bad.slice(0, 6).join("、"))}</div>
+    ${c.error ? `<div class="small" style="white-space:pre-line">${esc(c.error)}</div>` : `<div class="small muted">ホストがサーバーを起動しているときに、もう一度「▶ 遊ぶ」を押すと、自動で直します。</div>`}</div>`;
+}
+
+
+// ================ ネットワーク診断（どの方法で友達を呼べるか） ================
+function renderNetDiag(el, s, save) {
+  if (!el) return;
+  el.innerHTML = `<div class="row"><h3 class="grow">🔎 ネットワーク診断</h3><span class="badge">まずはこれ</span></div>
+    <p class="muted" style="margin:6px 0 10px">あなたの回線で、どの方法が使えるかを自動で調べて、おすすめを出します（10秒ほど）。</p>
+    <button class="btn primary" data-nd>診断する</button><div data-ndres style="margin-top:12px"></div>`;
+  $("[data-nd]", el).onclick = async () => {
+    let d;
+    try { d = await runJob(api("net_diagnose", { id: s.id }), "ネットワークを調べています"); } catch (e) { if (!e.shown) fail(e); return; }
+    const row = (ok, title, text) => `<div class="pf-row ${ok ? "ok" : "warn"}" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid color-mix(in srgb, var(--edge) 30%, transparent)">
+      <div style="font-size:18px">${ok ? "✅" : "➖"}</div><div><b>${title}</b><div class="small muted">${text}</div></div></div>`;
+    const best = d.best === "upnp" ? ["自動ポート開放（UPnP）", "登録なしで使えます。下の「自動ポート開放」の「ポートを開ける」を押してください。"]
+      : d.best === "ipv6_or_playit" ? ["playit.gg（確実）　または　IPv6 で直接（登録なし）", "友達全員の回線が IPv6 に対応しているなら、登録なしの「IPv6 で直接」が使えます。1人でも対応していない人がいるなら、playit.gg が確実です。"]
+        : ["playit.gg", "この回線では、ほかの方法が使えません。playit.gg（無料の登録が1回だけ必要）を使ってください。"];
+    $("[data-ndres]", el).innerHTML = `<div class="note ok"><b>おすすめ: ${best[0]}</b>${best[1]}</div>
+      ${row(d.upnp && !d.shared_v4, "自動ポート開放（UPnP）", !d.upnp ? "ルーターが対応していないか、機能がOFFです。" : d.shared_v4 ? "ルーターは対応していますが、この回線は「共有アドレス」（v6プラス・マンションの回線など）なので、開けても外から入れません。" : "使えます。")}
+      ${row(!!d.ipv6, "IPv6 で直接つなぐ", d.ipv6 ? `使えます。アドレス: <code>${esc(d.ipv6_address)}</code> ${cpBtn(d.ipv6_address, "コピー", "アドレス")}
+          <div style="margin-top:4px">注意: ①友達の回線も IPv6 に対応している必要があります　②ルーターの「IPv6 フィルタ（外からの通信を止める設定）」で、ポート ${d.port} を通す設定が必要なことがあります　③このアドレスは、ときどき変わります。</div>
+          <button class="btn sm" data-usev6 style="margin-top:6px">このアドレスを使う</button>` : "この回線（またはこのPC）では、IPv6 が使えません。")}
+      ${row(true, "playit.gg", d.playit ? "いま動いています。" : "どの回線でも使えます（無料の登録が1回だけ必要）。下の「▶ playit を起動」から始めます。")}
+      <div class="small muted" style="margin-top:8px">インターネットから見たアドレス（IPv4）: ${esc(d.ipv4 || "わかりませんでした")}</div>`;
+    const b = $("[data-usev6]", el);
+    if (b) b.onclick = async () => {
+      if (!(await ask("IPv6 のアドレスを使う", `<p>友達に渡すアドレスを <code>${esc(d.ipv6_address)}</code> にします。</p><p class="small">友達の回線が IPv6 に対応していないと、入れません。つながらない友達がいたら、playit.gg に切り替えてください。</p>`, "使う"))) return;
+      save(d.ipv6_address).catch(fail);
+    };
+  };
+}
+
+
+// ================ 使い方（実際の画面の画像つき） ================
+const HOWTO = [
+  { who: "host", t: "1. サーバーを作る", img: "01_create", lead: "最初に1回だけ行います。画面の案内に沿って進めるだけで、サーバーができます。",
+    steps: ["左のメニューの「新しいサーバーを作る」を押します。", "サーバーの名前を入れます（あとで変えられます）。",
+      "「次へ」を押して、MOD・バージョン・メモリを順番に決めます。迷ったら、おすすめのままで大丈夫です。"] },
+  { who: "host", t: "2. サーバーを起動する", img: "02_home", lead: "サーバーの「ホーム」が、いつも使う画面です。",
+    steps: ["右上の「▶ 起動」を押します。「起動完了」と出るまで待ちます（MODが多いと数分かかります）。",
+      "「今やること」の案内に沿って進めると、友達を呼ぶところまで順番に終わります。「全部自動でやる」も使えます。",
+      "使いたい機能の場所がわからないときは、「機能を探す」に言葉を入れると、その場所へ移動できます。"] },
+  { who: "host", t: "3. MODを入れる・更新する", img: "03_mods", lead: "「MOD」タブで、MODの追加・削除・更新ができます。",
+    steps: ["「MODを探して入れる」で、名前やジャンルから探して入れます。必要な前提MODも一緒に入ります。",
+      "「更新」で、新しいバージョンをまとめて更新できます。調子が悪くなったら「前の更新を元に戻す」で戻せます。",
+      "「起動テスト・相性」で、MOD同士の相性と、ちゃんと起動できるかを確かめられます。"] },
+  { who: "host", t: "4. 友達が入れるようにする", img: "04_public", lead: "「友達」→「友達を呼ぶ」で、インターネットから入れるようにします。",
+    steps: ["「診断する」を押すと、あなたの回線で使える方法と、おすすめがわかります。",
+      "playit を使うときは「▶ 起動」を押します。初回だけ、playit.gg の無料登録が必要です。"] },
+  { who: "host", t: "5. アドレスを保存して、テストする", img: "05_address", lead: "同じ画面の下のほうにあります。",
+    steps: ["できたアドレス（例: xxxx.joinmc.link）を、ここに貼ります。", "「保存」を押します。招待カードやパックにも、このアドレスが入ります。",
+      "「外から入れるかテスト」で、友達が本当に入れるかを確かめられます。"] },
+  { who: "host", t: "6. 友達の名前を登録する", img: "06_members", lead: "「友達」→「メンバー・BAN」です。登録していない人は、サーバーに入れません。",
+    steps: ["友達の「マイクラの名前」を入れます。大文字・小文字も正確に入れてください。", "「追加」を押します。",
+      "登録していない人が入ろうとすると、「入りたい人の申請」に名前が出ます。「承認」を押すだけで入れるようになります。"] },
+  { who: "host", t: "7. 友達用パックと招待カードを作る", img: "07_pack", lead: "「友達」→「友達用パック」です。友達が、あなたと同じMODで遊べるようにします。",
+    steps: ["このスイッチがONなら、MODを変えたときに、パックが自動で新しくなります（友達のソフトに「更新があります」と出ます）。",
+      "「パックを作る」で、友達に送るファイル（.mrpack）ができます。", "「友達用の入り方カードを作る」で、手順をまとめたページができます。アドレスと一緒に友達へ送ります。"] },
+  { who: "friend", t: "8. 友達のサーバーに参加する（遊びに行く人）", img: "08_join", lead: "遊びに行く人は、左のメニューの「友達のサーバーに参加」だけを使います。",
+    steps: ["ホスト（サーバーを立てた人）からもらったアドレスを貼ります。", "「参加する」を押し、次の画面で「入れる」を押します。同じMODが自動で入ります。",
+      "「更新があります」と出たら「今すぐ更新」を押します。何が変わったかも見られます。",
+      "2回目からは「▶ 遊ぶ」を押すだけです。MODがサーバーと同じかを自動で調べてから、ランチャーを開きます。ランチャーでは「（マルチ用）」を選びます。"] },
+  { who: "host", t: "9. 遊んでいる間にできること", img: "10_running", lead: "サーバーが動いている間の「ホーム」です。",
+    steps: ["終わるときは「■ 停止」を押します。ワールドを保存してから止まります。",
+      "ここにコマンドを入れて送れます。日本語（例: 天気）を入れると、候補が出ます。",
+      "よく使うコマンドは、ボタンを押すだけで実行できます。「もっと」から、自分のボタンも足せます。"] },
+  { who: "host", t: "10. バックアップを作る・戻す", img: "09_backup", lead: "「ワールド」→「バックアップ」です。大事なワールドを守ります。",
+    steps: ["「今すぐバックアップ」で、今のワールドを保存します。起動の前や、決めた時間ごとに自動で作ることもできます。",
+      "「この時点に戻す」で、そのときのワールドに戻せます（サーバーを止めてから行います）。"] },
+];
+function viewHowto(root) {
+  const sec = (h, i) => `<section class="howto" id="howto-${i}">
+    <h2>${esc(h.t)} <span class="badge ${h.who === "friend" ? "warn" : "ok"}">${h.who === "friend" ? "遊びに行く人" : "サーバーを立てる人"}</span></h2>
+    <p class="muted">${esc(h.lead)}</p>
+    <div class="howto-body"><button class="howto-img" data-zoom="${h.img}" title="押すと大きく見られます"><img src="/static/guide/${h.img}.jpg" alt="${esc(h.t)} の画面" loading="lazy"></button>
+      <ol class="howto-steps">${h.steps.map((s, n) => `<li><span class="num">${n + 1}</span><span>${esc(s)}</span></li>`).join("")}</ol></div></section>`;
+  root.innerHTML = `<div class="page"><h1>使い方</h1>
+    <p class="lead">実際の画面を使って、サーバーを作るところから、友達と遊ぶところまでを順番に説明します。画像の<b style="color:#e23d34">赤い番号</b>が、右の説明の番号です。画像を押すと、大きく見られます。</p>
+    <div class="howto-toc">${HOWTO.map((h, i) => `<button class="subtab" data-jump="${i}">${esc(h.t)}</button>`).join("")}</div>
+    ${HOWTO.map(sec).join("")}
+    <p class="muted small">※ 画像は説明用のサーバーで撮ったものです。名前やMODは、あなたの画面とは違います。</p></div>`;
+  $$("[data-jump]", root).forEach((b) => (b.onclick = () => $("#howto-" + b.dataset.jump, root).scrollIntoView({ behavior: "smooth", block: "start" })));
+  $$("[data-zoom]", root).forEach((b) => (b.onclick = () => {
+    const m = modal(`<img src="/static/guide/${b.dataset.zoom}.jpg" alt="" style="width:100%;height:auto;border-radius:8px"><div class="modal-foot"><button class="btn primary" data-x>閉じる</button></div>`, { wide: true });
+    $("[data-x]", m.el).onclick = m.close;
+  }));
 }

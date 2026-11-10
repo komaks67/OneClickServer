@@ -65,7 +65,7 @@ def download(info: dict, dest_dir: str) -> str:
         raise UpdateError("ダウンロード先がわかりません")
     data = _get(base + PACK_FILE, timeout=60)
     if info.get("sha256") and hashlib.sha256(data).hexdigest() != info["sha256"]:
-        raise UpdateError("ダウンロードしたパックがこわれています。もう一度ためしてください。")
+        raise UpdateError("ダウンロードしたパックが壊れています。もう一度ためしてください。")
     os.makedirs(dest_dir, exist_ok=True)
     fd, path = tempfile.mkstemp(suffix=".mrpack", dir=dest_dir)
     with os.fdopen(fd, "wb") as f:

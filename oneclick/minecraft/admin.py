@@ -103,7 +103,7 @@ ACTIONS = {
     "deop": ("manage", "OP をやめさせる", lambda a, mc: f"deop {player(a.get('player'))}"),
     "whitelist_add": ("manage", "ホワイトリストに追加", lambda a, mc: f"whitelist add {player(a.get('player'))}"),
     "whitelist_remove": ("manage", "ホワイトリストから外す", lambda a, mc: f"whitelist remove {player(a.get('player'))}"),
-    "reload": ("manage", "データパックを読みこみ直す", lambda a, mc: "reload"),
+    "reload": ("manage", "データパックを読み込み直す", lambda a, mc: "reload"),
     "datapacks": ("manage", "データパックの一覧", lambda a, mc: "datapack list"),
 }
 
@@ -150,7 +150,7 @@ class Capture:
         self.r = runner
         self.lines: list[str] = []
         self.active = False
-        self.hide = False      # True のあいだは、集めた行を画面のログに出さない（ゲームルールを読むときなど）
+        self.hide = False      # True の間は、集めた行を画面のログに出さない（ゲームルールを読むときなど）
         self.lock = threading.Lock()
         runner.line_hooks.append(self._hook)
 

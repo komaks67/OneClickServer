@@ -50,7 +50,7 @@ def update(domain: str, token: str) -> bool:
     ok = text.startswith("OK")
     lines = text.splitlines()
     state.update(last=time.time(), ok=ok, ip=lines[1] if ok and len(lines) > 1 else None,
-                 message="今の住所を知らせました" if ok else "DuckDNS にことわられました（名前か token がまちがっています）")
+                 message="今の住所を知らせました" if ok else "DuckDNS に断られました（名前か token が間違っています）")
     return ok
 
 

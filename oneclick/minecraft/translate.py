@@ -33,7 +33,48 @@ def _load():
 
 
 def _key(text: str) -> str:
-    return hashlib.sha1(text.strip().encode("utf-8")).hexdigest()
+    # "v2:" … 翻訳のしくみを良くしたので、前の訳とは別に覚える
+    return hashlib.sha1(("v2:" + text.strip()).encode("utf-8")).hexdigest()
+
+
+# マイクラの用語は、訳す前に日本語の正式な名前に置き換える（「Creeper → つる植物」のような誤訳を防ぐ）
+GLOSSARY = [
+    ("resource packs?", "リソースパック"), ("texture packs?", "リソースパック"), ("data ?packs?", "データパック"),
+    ("mod ?packs?", "MODパック"), ("shader ?packs?", "シェーダーパック"), ("shaders?", "シェーダー"),
+    ("crafting tables?", "作業台"), ("ender dragon", "エンダードラゴン"), ("the end", "ジ・エンド"), ("the nether", "ネザー"),
+    ("nether", "ネザー"), ("overworld", "オーバーワールド"), ("mobs?", "モブ"), ("creepers?", "クリーパー"),
+    ("endermen|enderman", "エンダーマン"), ("villagers?", "村人"), ("piglins?", "ピグリン"), ("wither", "ウィザー"),
+    ("zombies?", "ゾンビ"), ("skeletons?", "スケルトン"), ("golems?", "ゴーレム"), ("biomes?", "バイオーム"),
+    ("dimensions?", "ディメンション"), ("chunks?", "チャンク"), ("redstone", "レッドストーン"), ("netherite", "ネザライト"),
+    ("elytra", "エリトラ"), ("enchantments?", "エンチャント"), ("enchanting", "エンチャント"), ("potions?", "ポーション"),
+    ("furnaces?", "かまど"), ("anvils?", "金床"), ("beacons?", "ビーコン"), ("pickaxes?", "ツルハシ"),
+    ("hotbar", "ホットバー"), ("inventory", "インベントリ"), ("inventories", "インベントリ"), ("waypoints?", "ウェイポイント"),
+    ("minimaps?", "ミニマップ"), ("entities|entity", "エンティティ"), ("multiplayer", "マルチプレイ"),
+    ("singleplayer|single-player", "シングルプレイ"), ("vanilla", "バニラ"), ("survival mode", "サバイバルモード"),
+    ("creative mode", "クリエイティブモード"), ("hardcore", "ハードコア"), ("spawn eggs?", "スポーンエッグ"),
+    ("mods", "MOD"), ("mod", "MOD"),
+]
+_GLOSS_RE = re.compile(r"(?<![A-Za-z0-9_-])(" + "|".join(f"(?P<g{i}>{pat})" for i, (pat, _) in enumerate(GLOSSARY)) + r")(?![A-Za-z0-9_-])",
+                       re.I)
+# 訳したあとに直す、よくある誤訳
+POST_FIX = [("モッド", "MOD"), ("暴徒", "モブ"), ("MODS", "MOD"), ("Mods", "MOD"), ("マインクラフト", "マイクラ"),
+            ("ＭＯＤ", "MOD"), (" MOD ", "MOD"), ("MOD パック", "MODパック")]
+
+
+def _prepare(text: str) -> str:
+    def sub(m):
+        for i, (_, ja) in enumerate(GLOSSARY):
+            if m.group(f"g{i}"):
+                return ja
+        return m.group(0)
+    return _GLOSS_RE.sub(sub, text)
+
+
+def _polish(text: str) -> str:
+    for a, b in POST_FIX:
+        text = text.replace(a, b)
+    text = re.sub(r"(?<=[ぁ-んァ-ヶー一-龥、。]) +(?=[ぁ-んァ-ヶー一-龥])", "", text)   # 日本語の間の余分な空白
+    return text.strip()
 
 
 def cached(text: str) -> str | None:
@@ -91,6 +132,17 @@ def _fallback(chunk: str) -> str:
         raise TranslateLimit("翻訳できませんでした。") from e
 
 
+def _one(chunk: str, email: str | None, fallback: bool) -> str:
+    """1かたまりを訳す。速くて正確な Google を先に使い、だめなら MyMemory（設定でGoogleを使わないときは MyMemory だけ）。"""
+    src = _prepare(chunk)
+    if fallback:
+        try:
+            return _fallback(src)
+        except TranslateLimit:
+            pass
+    return _mymemory(src[:480], email)
+
+
 def translate(text: str, email: str | None = None, fallback: bool = True) -> str:
     text = (text or "").strip()
     if not text:
@@ -98,19 +150,15 @@ def translate(text: str, email: str | None = None, fallback: bool = True) -> str
     hit = cached(text)
     if hit:
         return hit
-    results = []
-    use_fallback = False
-    for chunk in _chunks(text):
-        if not use_fallback:
-            try:
-                results.append(_mymemory(chunk, email))
-                continue
-            except TranslateLimit:
-                if not fallback:
-                    raise
-                use_fallback = True  # 上限などのときは、残りも予備で訳す
-        results.append(_fallback(chunk))
+    chunks = _chunks(text, 1500 if fallback else 450)
+    if len(chunks) == 1:
+        results = [_one(chunks[0], email, fallback)]
+    else:                                   # 長い文は、かたまりごとに同時に訳す（速くするため）
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(4, len(chunks))) as ex:
+            results = list(ex.map(lambda c: _one(c, email, fallback), chunks))
     out = "".join(results) if all(re.search(r"[ぁ-んァ-ン一-龥]", r) for r in results) else " ".join(results)
+    out = _polish(out)
     with _lock:
         c = _load()
         c[_key(text)] = out
@@ -119,3 +167,18 @@ def translate(text: str, email: str | None = None, fallback: bool = True) -> str
                 del c[k]
         save_json(CACHE_FILE, c)
     return out
+
+
+def translate_many(texts: list[str], email: str | None = None, fallback: bool = True) -> list[str | None]:
+    """たくさんの文を、同時にまとめて訳す（検索結果の一覧など）。失敗したものは None。"""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(tx):
+        try:
+            return translate(tx, email, fallback)
+        except TranslateLimit:
+            return None
+    if not texts:
+        return []
+    with ThreadPoolExecutor(max_workers=min(6, len(texts))) as ex:
+        return list(ex.map(one, texts))

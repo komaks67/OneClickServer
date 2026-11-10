@@ -49,7 +49,7 @@ class WebSocket:
         if b" 101 " not in status:
             code = status.decode("latin-1", "replace")
             if b"401" in status:
-                raise MsmpError("合言葉がちがうため、窓口に入れませんでした")
+                raise MsmpError("合言葉が違うため、窓口に入れませんでした")
             raise MsmpError(f"窓口につなげませんでした（{code}）")
         self.sock.settimeout(None)
         self._send_lock = threading.Lock()

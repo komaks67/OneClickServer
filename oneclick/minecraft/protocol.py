@@ -43,7 +43,7 @@ def register() -> bool:
         return False
     import winreg
     from . import runtime
-    cmd = runtime.launch_command('--join "%1"')
+    cmd = runtime.launch_command('--join "%1"' if runtime.FROZEN else '-Join "%1"')
     base = rf"Software\Classes\{SCHEME}"
     try:
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, base) as k:

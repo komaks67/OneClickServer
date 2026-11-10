@@ -1,7 +1,7 @@
-"""サーバーを軽くする：ワンクリック最適化・重さの原因さがし・お掃除。
+"""サーバーを軽くする：ワンクリック最適化・重さの原因探し・お掃除。
 
 - plan()   … PCの性能・MODの数・人数から「変えたほうがいい設定」の一覧を作る（まだ変えない）
-- apply()  … 選んだものだけ変える（変える前の値は記録しておき、元にもどせる）
+- apply()  … 選んだものだけ変える（変える前の値は記録しておき、元に戻せる）
 - scan()   … 動いているサーバーで、アイテム・生き物がどこにどれだけたまっているかを数える
 """
 from __future__ import annotations
@@ -123,13 +123,13 @@ def plan(prof, total_ram_mb: int, cpus: int, mods: int, mem_rec: int) -> list[di
          "生き物・作物・機械が動く範囲です。小さくするとサーバーがかなり軽くなります。")
     prop("entity-broadcast-range-percentage", 75, "生き物を送る距離",
          "遠くの生き物の情報を送る量を減らして、通信とサーバーを軽くします（遊び方はほぼ変わりません）。")
-    prop("network-compression-threshold", 256, "通信の圧縮", "標準の値にもどします（小さすぎるとCPUを使いすぎます）。")
-    prop("sync-chunk-writes", "false", "ワールドの書きこみ方",
+    prop("network-compression-threshold", 256, "通信の圧縮", "標準の値に戻します（小さすぎるとCPUを使いすぎます）。")
+    prop("sync-chunk-writes", "false", "ワールドの書き込み方",
          "保存のたびに待たなくなるので、カクつきが減ります。停電などで急にPCが落ちると、最後の数秒が保存されないことがあります。",
          risky=True)
     if versions.at_least(mc, (1, 21, 2)):
-        prop("pause-when-empty-seconds", 60, "だれもいないとき止める",
-             "だれもいない時間が1分続いたら、世界の時間を止めてCPUを休ませます。")
+        prop("pause-when-empty-seconds", 60, "誰もいないとき止める",
+             "誰もいない時間が1分続いたら、世界の時間を止めてCPUを休ませます。")
 
     mem = _num(prof.get("memory_mb"), 4096)
     if mem_rec and mem + 512 < mem_rec:
@@ -154,7 +154,7 @@ PAPER_WORLD = [
     ("collisions.max-entity-collisions", 2, "生き物どうしのぶつかり判定", "1匹が同時にぶつかる相手の数を減らします。牧場がたくさんあると効果大。"),
     ("misc.redstone-implementation", "ALTERNATE_CURRENT", "レッドストーンの計算方法", "レッドストーン回路をとても速く計算する方法にします。普通の回路はそのまま動きます。"),
     ("chunks.max-auto-save-chunks-per-tick", 8, "自動保存のペース", "自動保存を少しずつ行って、保存のたびのカクつきを減らします。"),
-    ("chunks.prevent-moving-into-unloaded-chunks", True, "読みこまれていない場所へ入らない", "速く飛びすぎて、まだ読みこまれていない場所に入るのを防ぎます（重さの原因になる）。"),
+    ("chunks.prevent-moving-into-unloaded-chunks", True, "読み込まれていない場所へ入らない", "速く飛びすぎて、まだ読み込まれていない場所に入るのを防ぎます（重さの原因になる）。"),
     ("tick-rates.mob-spawner", 2, "スポナーの処理", "スポナーの処理を2回に1回にします。湧く量はほとんど変わりません。"),
     ("hopper.disable-move-event", True, "ホッパーの処理", "ホッパーの中の計算を軽くします（プラグインがホッパーを見張っていないときだけ）。"),
 ]
@@ -203,7 +203,7 @@ def _paper_items(prof) -> list[dict]:
 
 
 def apply(prof, items: list[dict], write_props, set_memory) -> list[str]:
-    """選んだ項目を変える。変える前の値を記録しておく（元にもどす用）。"""
+    """選んだ項目を変える。変える前の値を記録しておく（元に戻す用）。"""
     undo = load_json(os.path.join(prof.dir, UNDO_FILE), {"props": {}, "yaml": {}, "memory": None, "at": None})
     done = []
     props_new = {}
@@ -265,7 +265,7 @@ def has_undo(prof) -> str | None:
     return u.get("at") if u else None
 
 
-# ============================================================ 重さの原因さがし
+# ============================================================ 重さの原因探し
 
 SCAN_TYPES = [
     ("item", "落ちているアイテム", True),

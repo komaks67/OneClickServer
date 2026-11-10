@@ -181,7 +181,7 @@ document.addEventListener("click", (e) => {
   api("open_url", { url: a.dataset.url }).catch(fail);
 });
 
-// ================================================================ 状態と画面切りかえ
+// ================================================================ 状態と画面切り替え
 const S = {
   servers: [], ram: 8192, settings: {}, windows: true,
   view: "welcome", server: null, tab: "home", sub: "installed",
@@ -286,6 +286,7 @@ function renderSide() {
     ${nav("import", "🚚", "引っ越しファイルから作る")}
     <div class="side-sep"></div>
     ${nav("join", "🎮", "友達のサーバーに参加" + (S.joinUpdates ? ` <span class="badge warn">更新${S.joinUpdates}</span>` : ""))}
+    ${nav("howto", "📘", "使い方（画面つき）")}
     ${nav("guide", "📖", "入り方ガイド")}
     ${nav("glossary", "💬", "ことばの説明")}
     <div class="side-foot">
@@ -313,7 +314,7 @@ async function exitApp() {
 
 function renderMain() {
   const views = { welcome: viewWelcome, server: viewServer, create: viewCreate, modpack: viewModpack, import: viewImport, join: viewJoin,
-    guide: viewGuide, glossary: viewGlossary, appsettings: viewAppSettings, list: viewList };
+    guide: viewGuide, glossary: viewGlossary, appsettings: viewAppSettings, list: viewList, howto: viewHowto };
   (views[S.view] || viewWelcome)($("#main"));
   showForeignBanner();
 }
@@ -343,7 +344,7 @@ function viewWelcome(root) {
     <div class="hero">
       <div>
         <h1 class="big-title">MODを入れて、<br>友達とマイクラを楽しみましょう。</h1>
-        <p class="lead">サーバー作り、MODの導入、友達の呼び方まで、このソフトが順番に案内します。むずかしい設定は自動でやります。</p>
+        <p class="lead">サーバー作り、MODの導入、友達の呼び方まで、このソフトが順番に案内します。難しい設定は自動でやります。</p>
       </div>
     </div>
     <div class="welcome">
@@ -390,7 +391,7 @@ async function autoTranslate(root) {
         }
       }
     };
-    await Promise.all([worker(), worker(), worker()]);   // 3つずつ同時に訳す
+    await Promise.all([worker(), worker(), worker(), worker(), worker()]);   // 5つずつ同時に訳す
   } finally {
     translateBusy = false;
   }
@@ -424,7 +425,7 @@ function modCard(c, { pickable = false, picked = false, fav = false } = {}) {
 }
 
 /**
- * MODをさがす部品。
+ * MODを探す部品。
  * opts: { server, picked: Map(id→title), onChange, type: "mod", installMode }
  */
 function modBrowser(root, opts) {
@@ -438,7 +439,7 @@ function modBrowser(root, opts) {
     ["game-mechanics", "ゲームの仕組み"], ["social", "交流"], ["library", "前提MOD"]];
   root.innerHTML = `
     <div class="mod-tools">
-      ${cfOk ? `<select data-src aria-label="さがすサイト" style="width:auto"><option value="modrinth">Modrinth</option><option value="curseforge">CurseForge</option></select>` : ""}
+      ${cfOk ? `<select data-src aria-label="探すサイト" style="width:auto"><option value="modrinth">Modrinth</option><option value="curseforge">CurseForge</option></select>` : ""}
       <input type="search" placeholder="名前で検索（英語）　例: create, sodium, jei" aria-label="MODを検索">
       <select data-cat aria-label="ジャンル">${cats.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>
       <select data-sort aria-label="並べ方"><option value="downloads">人気順</option><option value="relevance">関係が深い順</option><option value="follows">お気に入りが多い順</option><option value="updated">最近更新された順</option><option value="newest">新しい順</option></select>
@@ -456,7 +457,7 @@ function modBrowser(root, opts) {
   const grid = $("[data-grid]", root);
   const input = $("input[type=search]", root);
   const load = async (reset) => {
-    if (reset) { st.offset = 0; st.hits.clear(); grid.innerHTML = `<div class="empty">さがしています…</div>`; }
+    if (reset) { st.offset = 0; st.hits.clear(); grid.innerHTML = `<div class="empty">探しています…</div>`; }
     if (st.fav) {
       const q = st.q.toLowerCase();
       const list = [...favs.values()].filter((h) => !q || (h.title + " " + (h.ja || "") + " " + (h.desc || "")).toLowerCase().includes(q));
@@ -483,7 +484,7 @@ function modBrowser(root, opts) {
       $("[data-more]", root).hidden = st.hits.size >= st.total;
       autoTranslate(grid);
     } catch (e) {
-      grid.innerHTML = `<div class="empty">読みこめませんでした: ${esc(e.message)}</div>`;
+      grid.innerHTML = `<div class="empty">読み込めませんでした: ${esc(e.message)}</div>`;
     }
   };
   const doSearch = () => { st.q = input.value.trim(); load(true); };
@@ -567,13 +568,13 @@ async function openDetail(id, ctx = {}) {
   const W = ctx.server ? modWordFor(ctx.server) : "MOD";
   const d = $("#drawer");
   d.hidden = false;
-  d.innerHTML = `<div class="drawer-close"><button class="btn" data-x>閉じる</button></div><div class="drawer-in"><div class="empty">読みこんでいます…</div></div>`;
+  d.innerHTML = `<div class="drawer-close"><button class="btn" data-x>閉じる</button></div><div class="drawer-in"><div class="empty">読み込んでいます…</div></div>`;
   $("[data-x]", d).onclick = closeDrawer;
   let m;
   try {
     m = await api("mod_detail", { id, server: ctx.server || null });
   } catch (e) {
-    $(".drawer-in", d).innerHTML = `<div class="empty">読みこめませんでした: ${esc(e.message)}</div>`;
+    $(".drawer-in", d).innerHTML = `<div class="empty">読み込めませんでした: ${esc(e.message)}</div>`;
     return;
   }
   if (d.hidden) return;
@@ -604,10 +605,10 @@ async function openDetail(id, ctx = {}) {
       ${m.deps && m.deps.length ? `<div class="panel"><h3>一緒に必要な前提${W} ${help("library")}</h3><p class="small muted" style="margin:4px 0">入れると自動で一緒に入ります。</p>
         <div class="chips">${m.deps.map((x) => `<span class="badge ${x.installed ? "ok" : ""}">${x.installed ? "✔ " : ""}${esc(x.title)}</span>`).join("")}</div></div>` : ""}
       <div class="panel"><h3>使えるバージョン ${help("version")}</h3>
-        ${m.matrix && m.matrix.length ? `<table class="matrix">${m.matrix.map((r) => `<tr><th>${esc(r.label)}</th><td>${esc(r.text)}${r.newest ? `<div class="small muted">いちばん新しい対応: ${esc(r.newest)}</div>` : ""}</td></tr>`).join("")}</table>` : `<p class="muted">情報がありません</p>`}
+        ${m.matrix && m.matrix.length ? `<table class="matrix">${m.matrix.map((r) => `<tr><th>${esc(r.label)}</th><td>${esc(r.text)}${r.newest ? `<div class="small muted">一番新しい対応: ${esc(r.newest)}</div>` : ""}</td></tr>`).join("")}</table>` : `<p class="muted">情報がありません</p>`}
       </div>
       ${m.gallery && m.gallery.length ? `<div><h3 style="margin-bottom:8px">画像</h3><div class="gallery">${m.gallery.map((g, i) => `<button data-img="${i}" aria-label="画像を大きく見る"><img src="${esc(g.url)}" alt="${esc(g.title || "")}" loading="lazy"></button>`).join("")}</div></div>` : ""}
-      ${m.body ? `<div class="panel"><div class="row"><h3 class="grow">くわしい説明（作者が書いた文）</h3><button class="btn sm" data-trbody>日本語に翻訳</button></div>
+      ${m.body ? `<div class="panel"><div class="row"><h3 class="grow">詳しい説明（作者が書いた文）</h3><button class="btn sm" data-trbody>日本語に翻訳</button></div>
         <div class="body-md clamp" data-body>${renderMarkdown(m.body)}</div><button class="linkbtn" data-expand style="margin-top:8px">続きを読む</button></div>` : ""}
       ${links ? `<p class="small">${links}</p>` : ""}
       ${m.license ? `<p class="small faint">ライセンス: ${esc(m.license)}</p>` : ""}
@@ -663,7 +664,7 @@ async function ensureDeps(serverId, W, { startLabel } = {}) {
   if (!missing.length) return null;
   const list = missing.map((m) => `<li><b>${esc(m.title)}</b><br><span class="small muted">${esc(m.detail)}</span></li>`).join("");
   const ok = await ask(`前提${W}が足りません`,
-    `<p>このまま使うと、サーバーや、ゲームが<b>止まる原因</b>になります。次の前提${W}が必要です。${help("library")}</p><ul>${list}</ul><p class="small muted">「入れる」を押すと、自動でさがして入れます。「あとで」を選ぶと、そのままにします。</p>`,
+    `<p>このまま使うと、サーバーや、ゲームが<b>止まる原因</b>になります。次の前提${W}が必要です。${help("library")}</p><ul>${list}</ul><p class="small muted">「入れる」を押すと、自動で探して入れます。「あとで」を選ぶと、そのままにします。</p>`,
     `入れる`, { cancelText: "あとで" });
   if (!ok) return false;
   const names = [];
@@ -782,7 +783,7 @@ function memoryBlock(adv, value, { name = "mem", selfPlay = true } = {}) {
     <div class="membar" data-membar aria-hidden="true"></div>
     <div class="legend"><span><i class="mem-sys"></i>Windows・ほかのソフト</span>${selfPlay ? '<span><i class="mem-self"></i>自分が遊ぶマイクラ</span>' : ""}<span><i class="mem-srv"></i>サーバー</span><span>PCのメモリ合計 ${gb(adv.total)}</span></div>
     <div data-memnote></div>
-    <details><summary class="small muted" style="cursor:pointer">メモリの決め方（くわしく）</summary>
+    <details><summary class="small muted" style="cursor:pointer">メモリの決め方（詳しく）</summary>
       <ul class="small" style="margin:8px 0 0;padding-left:1.3em">
         <li>メモリは「作業机の広さ」。サーバーに多く割り当てるほど、MODが多くても重くなりにくくなります。</li>
         <li>目安: バニラ 2GB、MOD少なめ 3〜4GB、MOD 100個前後 5〜6GB、大型MODパック 6〜8GBです。</li>
@@ -833,6 +834,7 @@ const TAB_GROUPS = [
   ["world", "🌍 ワールド", ["world", "commands", "backup"]],
   ["config", "⚙ 設定", ["easy", "perf", "settings"]],
 ];
+const TAB_ICONS = { public: "📨", pack: "📦", members: "👤", mods: "🧩", check: "🧪", world: "🗺", commands: "⌨", backup: "💾", easy: "🎛", perf: "🚀", settings: "🔧" };
 function navHtml(s) {
   const vis = visibleTabs();
   const label = (k) => { const t = vis.find(([x]) => x === k); return t ? (k === "mods" ? modWord(s) : t[1]) : ""; };
@@ -840,8 +842,68 @@ function navHtml(s) {
   const cur = TAB_GROUPS.find(([, , ks]) => ks.includes(S.tab)) || TAB_GROUPS[0];
   const top = groups.map(([g, l]) => `<button class="tab" role="tab" data-grp="${g}" aria-selected="${g === cur[0]}">${g === "mods" ? l.replace("MOD", modWord(s)) : l}</button>`).join("");
   const subs = cur[2].filter((k) => vis.some(([x]) => x === k));
-  const sub = subs.length > 1 ? `<div class="subtabs" role="tablist">${subs.map((k) => `<button class="subtab" role="tab" data-tab="${k}" aria-selected="${S.tab === k}">${label(k)}</button>`).join("")}</div>` : "";
-  return `<div class="tabs grp" role="tablist">${top}</div>${sub}`;
+  const sub = subs.length > 1 ? `<div class="subtabs" role="tablist">${subs.map((k) => `<button class="subtab" role="tab" data-tab="${k}" aria-selected="${S.tab === k}"><span aria-hidden="true">${TAB_ICONS[k] || ""}</span> ${label(k)}</button>`).join("")}</div>` : "";
+  return `<div class="tabs-row"><div class="tabs grp" role="tablist">${top}</div>
+    <div class="feat"><input type="search" data-feat placeholder="🔍 機能を探す（例: バックアップ）" aria-label="機能を探す" autocomplete="off"><div class="feat-list" data-featlist hidden></div></div></div>${sub}`;
+}
+
+// 機能の検索（名前を入れると、その機能がある場所へ飛ぶ）
+const FEATURES = [
+  ["サーバーを起動・停止する", "起動 停止 再起動 スタート", "home"], ["コマンドを送る", "コマンド コンソール ログ 入力", "home"],
+  ["いま遊んでいる人を見る", "プレイヤー 参加者 人数 オンライン", "home"], ["起動前チェック", "チェック 確認 メモリ ディスク", "home"],
+  ["入退出の音", "音 サウンド 通知", "home"], ["招待カードを作る", "招待 カード QR 友達 呼ぶ", "public"],
+  ["ネットワーク診断", "ネットワーク 診断 IPv6 UPnP 回線 つながらない", "public"], ["playit を使う", "playit 公開 アドレス トンネル", "public"],
+  ["自動ポート開放（UPnP）", "ポート 開放 UPnP ルーター", "public"], ["友達に渡すアドレスを決める", "アドレス IP 保存", "public"],
+  ["外から入れるかテストする", "テスト 届く 接続 確認", "public"], ["友達用パック（.mrpack）を作る", "パック mrpack 配布 友達", "pack"],
+  ["パックを自動で作り直す", "自動 更新 パック", "pack"], ["自分のマイクラにMODを入れる", "自分 遊ぶ 入れる クライアント", "pack"],
+  ["ホワイトリスト（入っていい人）", "ホワイトリスト 名前 登録 メンバー 追加", "members"], ["入りたい人の申請を承認する", "申請 承認 許可", "members"],
+  ["BAN・キックする", "BAN キック 追い出す 荒らし", "members"], ["OP（管理者）にする", "OP 管理者 権限", "members"],
+  ["あやしいアクセスを見る", "あやしい 侵入 不正 アクセス IP", "members"], ["入れない人の原因を調べる", "入れない 原因 診断 切れる", "members"],
+  ["遊んだ時間を見る", "時間 記録 プレイ時間", "members"],
+  ["入っているMODを見る・外す", "MOD 一覧 削除 OFF 無効", "mods", "installed"], ["MODを探して入れる", "MOD 検索 追加 インストール Modrinth CurseForge", "mods", "search"],
+  ["MODをまとめて更新する", "更新 アップデート 新しい 元に戻す", "mods", "updates"], ["MODの「必須／あると便利」を決める", "必須 便利 任意 印", "mods", "installed"],
+  ["起動テスト", "テスト 起動 確認", "check"], ["相性チェック", "相性 競合 エラー 前提", "check"],
+  ["みんなのルールを書く", "ルール お知らせ 表示", "world"], ["場所の目印（座標）を登録する", "座標 場所 目印 地図 ランドマーク", "world"],
+  ["コマンド辞典", "コマンド 辞典 一覧 意味 help", "commands"], ["アイテムのIDを探す", "アイテム ID give 画像", "commands"],
+  ["ボタンでコマンドを実行する", "時間 天気 ゲームモード テレポート give", "commands"],
+  ["バックアップを作る・戻す", "バックアップ 復元 戻す 保存", "backup"], ["荒らしの巻き戻し", "荒らし 巻き戻し 壊された", "backup"],
+  ["難しさ・ゲームモード・人数を変える", "難易度 ゲームモード 最大人数 PvP かんたん設定", "easy"], ["ゲームルールを変える", "ゲームルール keepInventory", "easy"],
+  ["重さ（TPS）を見る", "重い TPS ラグ カクカク グラフ", "perf"], ["軽くする（最適化）", "最適化 軽く 描画距離", "perf"],
+  ["ワールドを先に作っておく（事前生成）", "事前生成 プリジェネ チャンク", "perf"],
+  ["メモリを変える", "メモリ RAM 割り当て", "settings"], ["自動再起動・自動メモリ調整", "自動 再起動 落ちた クラッシュ", "settings"],
+  ["予約（決めた時刻に起動・停止）", "予約 スケジュール 時刻 タイマー", "settings"], ["Discord に通知する", "Discord 通知 Webhook", "settings"], ["Discord から操作する（ボット）", "Discord ボット bot ボタン 起動 停止 遠隔", "settings"],
+  ["サーバーの細かい設定（server.properties）", "設定 properties ポート MOTD", "settings"], ["引っ越しファイルを作る", "引っ越し 書き出し エクスポート 移動", "settings"],
+];
+function bindFeatureSearch(root) {
+  const inp = $("[data-feat]", root), list = $("[data-featlist]", root);
+  if (!inp) return;
+  const vis = () => visibleTabs().map(([k]) => k);
+  let items = [], idx = 0;
+  const jump = (f) => {
+    if (!vis().includes(f[2])) { setUiMode("detail").then(() => { S.tab = f[2]; S.sub = f[3] || "installed"; renderMain(); }); return; }
+    S.tab = f[2]; S.sub = f[3] || "installed"; viewServer(root);
+  };
+  const paint = () => {
+    const q = inp.value.trim().toLowerCase();
+    items = q ? FEATURES.filter((f) => q.split(/\s+/).every((w) => (f[0] + " " + f[1]).toLowerCase().includes(w)))
+      .sort((a, b) => (b[0].toLowerCase().includes(q) ? 1 : 0) - (a[0].toLowerCase().includes(q) ? 1 : 0)).slice(0, 8) : [];
+    idx = Math.min(idx, Math.max(0, items.length - 1));
+    list.hidden = !q;
+    const tabName = (k) => { const g = TAB_GROUPS.find((x) => x[2].includes(k)); const t = TABS.find((x) => x[0] === k); return (g ? g[1].replace(/^\S+\s/, "") : "") + (g && g[2].length > 1 && t ? " › " + t[1] : ""); };
+    list.innerHTML = items.length ? items.map((f, i) => `<button class="feat-item ${i === idx ? "on" : ""}" data-fi="${i}"><b>${esc(f[0])}</b><span>${esc(tabName(f[2]))}${vis().includes(f[2]) ? "" : "（詳しい表示）"}</span></button>`).join("")
+      : `<div class="feat-none">見つかりません。別のことばで試してください。</div>`;
+    $$("[data-fi]", list).forEach((b) => (b.onmousedown = (e) => { e.preventDefault(); jump(items[+b.dataset.fi]); }));
+  };
+  inp.addEventListener("input", () => { idx = 0; paint(); });
+  inp.addEventListener("keydown", (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === "ArrowDown") { idx = Math.min(idx + 1, items.length - 1); paint(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { idx = Math.max(idx - 1, 0); paint(); e.preventDefault(); }
+    else if (e.key === "Enter" && items[idx]) { jump(items[idx]); }
+    else if (e.key === "Escape") { inp.value = ""; paint(); }
+  });
+  inp.addEventListener("blur", () => setTimeout(() => { list.hidden = true; }, 150));
+  inp.addEventListener("focus", paint);
 }
 
 function viewServer(root) {
@@ -865,11 +927,12 @@ function viewServer(root) {
       </div>
     </div>
     <div data-lights>${lightsHtml(s)}</div><div data-pcwarn></div>
-    <div class="row" style="justify-content:flex-end;margin:4px 0"><button class="linkbtn" data-diag title="起動できない原因になりやすいことを、まとめて調べます">困ったとき診断</button><button class="linkbtn" data-delsrv title="このサーバーをフォルダごと消します">このサーバーを消す</button><button class="linkbtn" data-modebtn title="タブの数を切りかえます">${isDetail() ? "かんたん表示にする" : "くわしい機能も表示する"}</button></div>
+    <div class="row" style="justify-content:flex-end;margin:4px 0"><button class="linkbtn" data-diag title="起動できない原因になりやすいことを、まとめて調べます">困ったとき診断</button><button class="linkbtn" data-delsrv title="このサーバーをフォルダごと消します">このサーバーを消す</button><button class="linkbtn" data-modebtn title="タブの数を切り替えます">${isDetail() ? "かんたん表示にする" : "詳しい機能も表示する"}</button></div>
     ${navHtml(s)}
     <div class="tab-body" data-body></div>
   </div>`;
   $$("[data-tab]", root).forEach((b) => (b.onclick = () => { S.tab = b.dataset.tab; S.sub = "installed"; viewServer(root); }));
+  bindFeatureSearch(root);
   $$("[data-grp]", root).forEach((b) => (b.onclick = () => {
     const g = TAB_GROUPS.find((x) => x[0] === b.dataset.grp);
     const vis = visibleTabs().map(([k]) => k);
@@ -946,7 +1009,7 @@ async function startServer(id) {
     if (r.need_deps) {
       const W = modWordFor(id);
       const list = r.need_deps.map((m) => `<li><b>${esc(m.title)}</b><br><span class="small muted">${esc(m.detail)}</span></li>`).join("");
-      const ok = await ask(`前提${W}が足りません`, `<p>このまま起動すると、<b>止まる可能性が高い</b>です。${help("library")}</p><ul>${list}</ul><p class="small muted">まちがった警告で、毎回出るときは、「起動テスト・相性」タブの警告にある「この警告は出さない」を押してください。</p>`, "入れてから起動", { cancelText: "このまま起動" });
+      const ok = await ask(`前提${W}が足りません`, `<p>このまま起動すると、<b>止まる可能性が高い</b>です。${help("library")}</p><ul>${list}</ul><p class="small muted">間違った警告で、毎回出るときは、「起動テスト・相性」タブの警告にある「この警告は出さない」を押してください。</p>`, "入れてから起動", { cancelText: "このまま起動" });
       if (ok) {
         for (const m of r.need_deps) {
           try { await runJob(api("install_dep", { server: id, id: m.id }), `前提${W}「${m.id}」を入れています`); } catch (e) { if (!e.shown) fail(e); }
@@ -1008,7 +1071,7 @@ async function openDiagnose(s) {
     const head = r.running ? `<p class="muted">サーバーは動いています。止まっているときに、もう一度調べると、より正確です。</p>` : "";
     body.innerHTML = head + (r.issues.length
       ? `<p class="muted">見つかったこと:</p><div class="stack">${r.issues.map((i) => issueHtml(i, s.id)).join("")}</div>`
-      : `<div class="note ok"><b>問題は見つかりませんでした</b>起動できない原因になりやすいことは、見当たりません。</div>`);
+      : `<div class="note ok"><b>問題は見つかりませんでした</b>起動できない原因になりやすいことは、見当足りません。</div>`);
     bindIssueActions(body, s, () => setTimeout(() => { m.close(); openDiagnose(s); }, 400));
   } catch (e) { fail(e); body.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
@@ -1032,7 +1095,7 @@ async function supportBundle(s, btn) {
 function updateNoticeHtml(i) {
   if (!i) return "";
   if (!i.latest) return `<div class="note"><b>${esc(i.message || "確認できませんでした。")}</b></div>`;
-  if (!i.newer) return `<div class="note ok"><b>いちばん新しい版です（${esc(i.current)}）</b>${i.message ? esc(i.message) : ""}</div>`;
+  if (!i.newer) return `<div class="note ok"><b>一番新しい版です（${esc(i.current)}）</b>${i.message ? esc(i.message) : ""}</div>`;
   const notes = i.notes ? `<p class="small" style="white-space:pre-wrap;max-height:160px;overflow:auto;margin:8px 0">${esc(i.notes)}</p>` : "";
   return `<div class="note warn"><b>新しい版があります: ${esc(i.latest)}</b>（いまは ${esc(i.current)}）${notes}
     ${i.message ? `<p class="small">${esc(i.message)}</p>` : ""}
@@ -1044,7 +1107,7 @@ async function applyUpdateFlow(i) {
   if (running.length) { await info("先にサーバーを止めてください", `<p>動いているサーバー（${running.map((s) => esc(s.name)).join("、")}）があります。「■ 停止」で止めてから、もう一度押してください。</p>`); return; }
   if (!(await ask(`版 ${i.latest} に更新します`,
     `<p>新しい版をダウンロードして、入れ替えます。終わると、<b>ソフトが自動で開き直します</b>。</p>
-     <p class="small muted">サーバー・ワールド・設定（dataフォルダ）は、そのまま残ります。ダウンロードしたファイルは、指紋（SHA-256）が合っているときだけ使います。失敗したら、元の版にもどします。</p>`, "更新する"))) return;
+     <p class="small muted">サーバー・ワールド・設定（dataフォルダ）は、そのまま残ります。ダウンロードしたファイルは、指紋（SHA-256）が合っているときだけ使います。失敗したら、元の版に戻します。</p>`, "更新する"))) return;
   S.updating = true;
   try {
     await runJob(api("update_apply"), "ソフトを更新しています", { note: "ダウンロードのあと、ソフトが自動で終了して、開き直します。" });
@@ -1134,10 +1197,10 @@ function nextSteps(s) {
   const run = s.status === "running";
   const crashed = s.crash && s.status === "stopped";
   const steps = [
-    { k: "start", t: "サーバーを起動する", d: "「起動完了」と出るまで、数分待ちます。", done: run || s.status === "starting", b: crashed ? ["止まった原因を調べる", "check"] : ["▶ 起動する", "start"] },
-    { k: "addr", t: "友達が使うアドレスを作る", d: "playit.gg で、無料のアドレスを作って保存します（初回だけ）。", done: !!s.address, b: ["アドレスを作る", "public"] },
-    { k: "mem", t: "友達の「マイクラの名前」を登録する", d: "登録しないと、友達は入れません。", done: !s.whitelist_on || s.members > 0, b: ["名前を登録する", "members"] },
-    { k: "pack", t: "友達用パックを作って送る", d: "同じMODが入る .mrpack と、入り方カードを作ります。", done: s.pack_exported, b: ["パックを作る", "pack"] },
+    { k: "start", t: "サーバーを起動する", d: "右上の「▶ 起動」を押して、「起動完了」と出るまで待ちます（MODが多いと数分かかります）。", done: run || s.status === "starting", b: crashed ? ["止まった原因を調べる", "check"] : ["▶ 起動する", "start"] },
+    { k: "addr", t: "友達が使うアドレスを作る", d: "「ネットワーク診断」を押すと、あなたの回線に合う方法がわかります。できたアドレスを保存します（初回だけ）。", done: !!s.address, b: ["アドレスを作る", "public"] },
+    { k: "mem", t: "友達の「マイクラの名前」を登録する", d: "友達に「マイクラの名前」を聞いて、登録します。登録していない人は、サーバーに入れません。", done: !s.whitelist_on || s.members > 0, b: ["名前を登録する", "members"] },
+    { k: "pack", t: "友達用パックを作って送る", d: "友達があなたと同じMODで遊べるように、パックを作ります。できたら、招待カードと一緒に友達へ送ります。", done: s.pack_exported, b: ["パックを作る", "pack"] },
   ];
   if (crashed) steps.unshift({ k: "crash", t: "サーバーが止まりました。原因を調べる", d: "記録から原因を探して、直し方を出します。", done: false, b: ["原因を調べる", "check"] });
   return steps;
@@ -1156,10 +1219,10 @@ function nextCardHtml(s) {
       <div class="small muted">進み具合: ${total}つ中 <b>${doneN}つ</b> 終わりました</div>
       <div class="meter"><i style="width:${Math.round(doneN / total * 100)}%"></i></div></div>
       <button class="linkbtn" data-nexthide="hide" title="この案内を消します（あとで、また表示できます）">× 非表示</button></div>
-    ${cur ? `<div class="now-step"><div class="small muted">いま、やること</div><h3>${esc(cur.t)}</h3><p class="muted">${esc(cur.d)}</p>
-      <div class="row"><button class="btn go big glow" data-nextgo="${cur.b[1]}">${cur.b[0]}</button><button class="btn" data-quick title="サーバー起動・playit 起動・パック作成を、順番に自動でやります">ぜんぶ自動でやる</button></div></div>`
-    : `<div class="now-step"><h3>✔ ぜんぶ終わりました。遊べます！</h3><p class="muted">友達に、アドレスと入り方カードを送ってください。</p></div>`}
-    <details class="small" style="margin-top:8px"><summary style="cursor:pointer">ぜんぶの手順を見る</summary><ul class="nextlist">${list}</ul></details></div>`;
+    ${cur ? `<div class="now-step"><div class="small muted">手順 ${steps.filter((x) => x.k !== "crash").indexOf(cur) + 1} / ${total}　今やること</div><h3>${esc(cur.t)}</h3><p class="muted">${esc(cur.d)}</p>
+      <div class="row"><button class="btn go big glow" data-nextgo="${cur.b[1]}">${cur.b[0]}</button><button class="btn" data-quick title="サーバー起動・playit 起動・パック作成を、順番に自動でやります">全部自動でやる</button></div></div>`
+    : `<div class="now-step"><h3>✔ 全部終わりました。遊べます！</h3><p class="muted">友達に、アドレスと入り方カードを送ってください。</p></div>`}
+    <details class="small" style="margin-top:8px"><summary style="cursor:pointer">全部の手順を見る</summary><ul class="nextlist">${list}</ul></details></div>`;
 }
 
 function bindNextCard(body, s) {
@@ -1194,8 +1257,8 @@ async function runTour() {
   const steps = [
     ["ここが「次にやること」です", "いま、やることを1つだけ大きく出します。ボタンを押していけば、友達を呼べます。いらなければ「× 非表示」で消せます。", "[data-next]"],
     ["上の3つの信号で、状態がわかります", "緑は「だいじょうぶ」、赤は「直すところあり」です。赤のときは、その横のボタンで直せます。", "[data-lights]"],
-    ["ふだんは、少ないタブで使えます", "むずかしい機能は、ふだんは隠れています。必要になったら、ここで「くわしい機能も表示する」を押します。", "[data-modebtn]"],
-    ["友達に渡すものは、ここで作れます", "「友達」タブの「友達用パック」で、パックと「入り方カード」が作れます。「ぜんぶ自動でやる」でも作れます。", "[data-grp=friends]"],
+    ["ふだんは、少ないタブで使えます", "難しい機能は、ふだんは隠れています。必要になったら、ここで「詳しい機能も表示する」を押します。", "[data-modebtn]"],
+    ["友達に渡すものは、ここで作れます", "「友達」タブの「友達用パック」で、パックと「入り方カード」が作れます。「全部自動でやる」でも作れます。", "[data-grp=friends]"],
   ];
   for (let i = 0; i < steps.length; i++) {
     const [t, d, sel] = steps[i];
@@ -1217,7 +1280,7 @@ function tabHome(body, s) {
         <div class="note warn" data-lag-banner hidden style="margin-bottom:10px"></div>
         <div class="console" data-console aria-live="off"></div>
         <div class="inline-field" style="margin-top:10px">
-          <input type="text" data-cmd placeholder="コマンドを入れて Enter（日本語でさがせます。例: 天気）" aria-label="コマンド" autocomplete="off">
+          <input type="text" data-cmd placeholder="コマンドを入れて Enter（日本語で探せます。例: 天気）" aria-label="コマンド" autocomplete="off">
           <button class="btn" data-send>送る</button>
           ${cpBtn("", "ログをコピー", "ログ").replace('data-cp=""', "data-copylog")}
         </div>
@@ -1225,9 +1288,9 @@ function tabHome(body, s) {
       </div>
       <div class="stack">
         <div data-preflight></div>
-        <div class="panel"><div class="row"><h3 class="grow">参加中のプレイヤー</h3><label class="check small" title="だれかが入ったとき・出たときに、音とお知らせを出します"><input type="checkbox" data-snd ${soundOn() ? "checked" : ""}> 入退出の音</label></div><div class="players" data-players style="margin-top:8px"></div></div>
+        <div class="panel"><div class="row"><h3 class="grow" style="white-space:nowrap">今いる人</h3><label class="check small" title="誰かが入ったとき・出たときに、音とお知らせを出します"><input type="checkbox" data-snd ${soundOn() ? "checked" : ""}> 入退出の音</label></div><div class="players" data-players style="margin-top:8px"></div></div>
         <div class="panel"><h3>つながらなかった人 ${help("joinfail")}</h3><p class="muted small" style="margin:6px 0">入れなかった・切れた人と、その理由を、サーバーの記録から探します。</p>
-          <button class="btn sm" data-joinfail>しらべる</button><div data-joinfailout style="margin-top:8px"></div></div>
+          <button class="btn sm" data-joinfail>調べる</button><div data-joinfailout style="margin-top:8px"></div></div>
         <div class="panel"><h3>友達に伝えるアドレス</h3>
           ${s.address ? `<div class="addr" style="margin:8px 0">${esc(s.address)}</div><button class="btn sm" data-copy>コピー</button> <button class="btn sm" data-card>招待カード</button>`
             : `<p class="muted small" style="margin:6px 0">まだ決まっていません。</p><button class="btn sm primary" data-topublic>友達を呼ぶ準備をする</button>`}
@@ -1267,6 +1330,7 @@ function tabHome(body, s) {
   $("[data-snd]", body).onchange = (e) => { setSound(e.target.checked); wakeAudio(); if (e.target.checked) beep("join"); };
   $("[data-copylog]", body).onclick = () => copyText($$("div", con).map((d) => d.textContent).join("\n"), "ログ");
   bindCmdSuggest(cmd, () => (cur() ? cur().players || [] : []));
+  api("commands_get", { id: s.id }).then((r) => setModCmds(r.mod)).catch(() => {});   // MODのコマンドも候補に出す
   renderQuick($("[data-quickrow]", body), s, send);
   renderPreflight($("[data-preflight]", body), s);
   const tp = $("[data-topublic]", body);
@@ -1281,7 +1345,7 @@ function tabHome(body, s) {
 function renderPlayers(players, s) {
   const el = $("[data-players]");
   if (!el) return;
-  if (!players.length) { el.innerHTML = `<p class="muted small" style="margin:0">${s.status === "running" ? "まだだれもいません" : "サーバーが止まっています"}</p>`; return; }
+  if (!players.length) { el.innerHTML = `<p class="muted small" style="margin:0">${s.status === "running" ? "まだ誰もいません" : "サーバーが止まっています"}</p>`; return; }
   el.innerHTML = players.map((p) => `<div class="player"><span class="face" aria-hidden="true"></span><span class="nm">${esc(p)}</span>
     ${cpBtn(p, "名前", "名前")}${cpIdBtn(p)}
     <select data-pact="${esc(p)}" aria-label="${esc(p)} への操作" style="width:auto;min-height:32px;padding:2px 8px">
@@ -1357,7 +1421,7 @@ async function pollConsole(reset) {
 // ---------------- MOD ----------------
 function tabMods(body, s) {
   const W = modWord(s);
-  const subs = [["installed", `入っている${W}`], ["search", `${W}をさがして入れる`], ["updates", "更新"]];
+  const subs = [["installed", `入っている${W}`], ["search", `${W}を探して入れる`], ["updates", "更新"]];
   body.innerHTML = `<div class="row" style="margin-bottom:16px;gap:6px">${subs.map(([k, l]) => `<button class="btn ${S.sub === k ? "primary" : ""}" data-sub="${k}">${l}</button>`).join("")}
     <button class="btn" data-presets title="目的別に、おすすめを まとめて入れられます">おすすめセット</button><span class="grow"></span><span class="small muted">マイクラ ${esc(s.mc)}・${esc(s.loader_label)} 用の${W}が使えます ${help(W === "MOD" ? "loader" : "plugin")}</span></div><div data-subbody></div>`;
   $$("[data-sub]", body).forEach((b) => (b.onclick = () => { S.sub = b.dataset.sub; tabMods(body, s); }));
@@ -1371,7 +1435,7 @@ function tabMods(body, s) {
 }
 
 async function subInstalled(root, s) {
-  root.innerHTML = `<div class="empty">読みこんでいます…</div>`;
+  root.innerHTML = `<div class="empty">読み込んでいます…</div>`;
   let r;
   try { r = await api("mods_list", { server: s.id }); } catch (e) { root.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   const sel = new Set();
@@ -1384,7 +1448,7 @@ async function subInstalled(root, s) {
       <label class="btn sm">ファイルから追加（.jar）<input type="file" accept=".jar" multiple hidden data-jar></label>
       <button class="btn sm" data-folder>mods フォルダを開く</button>
     </div>
-    ${r.mods.length ? "" : `<div class="empty">まだMODが入っていません。<br><button class="btn primary" data-tosearch style="margin-top:10px">MODをさがして入れる</button></div>`}
+    ${r.mods.length ? "" : `<div class="empty">まだMODが入っていません。<br><button class="btn primary" data-tosearch style="margin-top:10px">MODを探して入れる</button></div>`}
     <div class="list">${r.mods.map((m) => `<div class="item ${m.enabled ? "" : "off"}" data-path="${esc(m.path)}">
       <input type="checkbox" data-sel aria-label="${esc(m.title)} を選ぶ" style="width:20px;height:20px;accent-color:var(--grass)">
       ${slotImg(m.icon, m.title, "sm")}
@@ -1393,7 +1457,7 @@ async function subInstalled(root, s) {
         <div class="chips" style="margin-top:3px"><span class="badge">${esc(m.where)}</span>${m.manual ? '<span class="badge warn">手動</span>' : ""}${m.mark === "optional" ? '<span class="badge ok">あると便利</span>' : (m.where === "サーバー ＋ 遊ぶ人" ? '<span class="badge lib">友達も必須</span>' : "")}</div></div>
       <div class="acts">
         ${m.can_optional && m.where !== "遊ぶ人だけ" ? `<select data-mark title="友達用パックでの扱い" style="width:auto;min-height:30px;padding:2px 6px"><option value="">友達も必須</option><option value="optional" ${m.mark === "optional" ? "selected" : ""}>あると便利（なくてもOK）</option></select>` : ""}
-        ${m.id ? `<button class="btn sm ghost" data-detail="${esc(m.id)}">くわしく</button>` : ""}
+        ${m.id ? `<button class="btn sm ghost" data-detail="${esc(m.id)}">詳しく</button>` : ""}
         ${m.url ? `<button class="btn sm ghost" data-url="${esc(m.url)}">サイト</button>` : ""}
         <label class="switch" title="ON / OFF"><input type="checkbox" data-en ${m.enabled ? "checked" : ""} aria-label="${esc(m.title)} を使う"><span></span></label>
       </div></div>`).join("")}</div>
@@ -1423,7 +1487,7 @@ async function subInstalled(root, s) {
         const cfg = pv.items.flatMap((x) => x.configs.map((c) => ({ ...c, title: x.title })));
         const W = modWord(s);
         const ok = await ask(`${W}を外す`, `<p>${paths.length}個の${W}を外して、ファイルを消しますか？</p>
-          ${cfg.length ? `<div class="panel" style="margin-top:10px"><b>いっしょに消せる設定ファイル</b><p class="small muted" style="margin:2px 0 8px">チェックしたものも消します（また入れたときは、最初の設定にもどります）。</p>
+          ${cfg.length ? `<div class="panel" style="margin-top:10px"><b>いっしょに消せる設定ファイル</b><p class="small muted" style="margin:2px 0 8px">チェックしたものも消します（また入れたときは、最初の設定に戻ります）。</p>
             ${cfg.map((c) => `<label class="check small" style="display:flex;margin:4px 0"><input type="checkbox" data-cfg value="${esc(c.path)}" checked> ${c.dir ? "📁" : "📄"} ${esc(c.path)} <span class="faint">（${esc(c.title)}・${c.kb}KB）</span></label>`).join("")}</div>`
             : `<p class="small muted">この${W}の設定ファイルは見つかりませんでした。</p>`}`, "外す", { danger: true });
         if (!ok) return;
@@ -1469,27 +1533,55 @@ function subSearch(root, s) {
 }
 
 async function subUpdates(root, s) {
-  root.innerHTML = `<p class="muted" style="margin-top:0">入っているMODに新しいバージョンがあるか調べます。更新の前にバックアップをとっておくと安心です。</p>
-    <button class="btn primary" data-chk>更新をさがす</button><div data-res style="margin-top:16px"></div>`;
+  root.innerHTML = `<p class="muted" style="margin-top:0;max-width:76ch">入っているMODの新しいバージョンをまとめて調べて、まとめて更新します。更新する前の状態は自動で取っておくので、調子が悪くなったら<b>「元に戻す」</b>で戻せます。</p>
+    <div class="row"><button class="btn primary" data-chk>更新を探す</button><span data-snap></span></div><div data-res style="margin-top:16px"></div>`;
+  const paintSnap = async () => {
+    const el = $("[data-snap]", root);
+    if (!el) return;
+    try {
+      const si = await api("mods_snapshot_info", { server: s.id });
+      el.innerHTML = si.exists ? `<button class="btn" data-rb title="${esc(si.titles.join("、"))}">↩ 前の更新を元に戻す（${new Date(si.time * 1000).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} の ${si.titles.length}個）</button>` : "";
+      const rb = $("[data-rb]", el);
+      if (rb) rb.onclick = async () => {
+        if (!(await ask("更新を元に戻す", `<p>前にまとめて更新した ${si.titles.length}個のMODを、更新する前のバージョンに戻しますか？</p><p class="small muted">${esc(si.titles.slice(0, 12).join("、"))}${si.titles.length > 12 ? " ほか" : ""}</p>`, "元に戻す"))) return;
+        try { await api("mods_rollback", { server: s.id }); toast("元に戻しました"); subUpdates(root, s); } catch (e) { fail(e); }
+      };
+    } catch (e) { el.innerHTML = ""; }
+  };
+  paintSnap();
   $("[data-chk]", root).onclick = async (e) => {
-    e.target.disabled = true; e.target.textContent = "さがしています…";
+    e.target.disabled = true; e.target.textContent = "探しています…";
     try {
       const r = await api("mods_updates", { server: s.id });
       const res = $("[data-res]", root);
       if (!r.updates.length) { res.innerHTML = `<div class="note ok"><b>すべて最新です</b></div>`; return; }
-      res.innerHTML = `<div class="list">${r.updates.map((u) => `<label class="item"><input type="checkbox" checked value="${esc(u.sha1)}" style="width:20px;height:20px;accent-color:var(--grass)">${slotImg(u.icon, u.title, "sm")}
+      res.innerHTML = `<div class="row" style="margin-bottom:8px"><b class="grow">新しいバージョンがあるMOD: ${r.updates.length}個</b>
+          <button class="btn sm ghost" data-all>すべて選ぶ</button><button class="btn sm ghost" data-none>すべて外す</button></div>
+        <div class="list">${r.updates.map((u) => `<label class="item"><input type="checkbox" checked value="${esc(u.sha1)}" style="width:20px;height:20px;accent-color:var(--grass)">${slotImg(u.icon, u.title, "sm")}
         <div><div class="t">${esc(u.title)}</div><div class="s">${esc(u.old || "?")} → <b style="color:var(--bone)">${esc(u.new || "?")}</b></div></div><span></span></label>`).join("")}</div>
-        <div class="row" style="margin-top:14px"><button class="btn primary" data-apply>選んだMODを更新する</button></div>`;
+        <div class="row" style="margin-top:14px"><button class="btn primary big" data-apply>選んだMODをまとめて更新する</button><span class="small muted" data-cnt></span></div>`;
+      const cnt = () => { $("[data-cnt]", res).textContent = `${$$("input:checked", res).length}個 選んでいます`; };
+      $$("input[type=checkbox]", res).forEach((c) => (c.onchange = cnt));
+      $("[data-all]", res).onclick = () => { $$("input[type=checkbox]", res).forEach((c) => (c.checked = true)); cnt(); };
+      $("[data-none]", res).onclick = () => { $$("input[type=checkbox]", res).forEach((c) => (c.checked = false)); cnt(); };
+      cnt();
       $("[data-apply]", res).onclick = async () => {
         const sha1s = $$("input:checked", res).map((c) => c.value);
-        if (!sha1s.length) return;
+        if (!sha1s.length) { toast("更新するMODを選んでください", "warn"); return; }
         try {
-          const out = await runJob(api("mods_apply_updates", { server: s.id, sha1s }), "MODを更新しています");
-          await info("更新しました", `<p>${out.updated}個のMODを更新しました。サーバーの再起動と、友達用パックの作り直しをしてください。</p>`);
+          const out = await runJob(api("mods_apply_updates", { server: s.id, sha1s }), "MODをまとめて更新しています", { note: "更新する前の状態は、自動で取っておきます。" });
+          const fails = (out.failed || []).map((f) => `<li>${esc(f.title)}<span class="muted small">（${esc(f.error)}）</span></li>`).join("");
+          const iss = (out.issues || []).map((i) => `<li>${esc(i.title)}</li>`).join("");
+          const go = await ask("更新しました", `<p><b>${out.updated}個</b>のMODを更新しました。</p>
+            ${fails ? `<div class="note warn"><b>更新できなかったMOD</b><ul>${fails}</ul></div>` : ""}
+            ${iss ? `<div class="note error"><b>相性の問題が見つかりました</b><ul>${iss}</ul>「相性チェック」で確認してください。</div>` : ""}
+            <p>このあと「起動テスト」をすると、ちゃんと動くか確かめられます。動かなかったら、この画面の「前の更新を元に戻す」で戻せます。</p>
+            <p class="small muted">友達用パックは、約30秒後に自動で作り直されます（友達のソフトに「更新があります」と出ます）。</p>`, "起動テストへ進む", { cancelText: "あとで" });
+          if (go) { S.tab = "check"; renderMain(); return; }
           subUpdates(root, s);
         } catch (err) { if (!err.shown) fail(err); }
       };
-    } catch (err) { fail(err); } finally { e.target.disabled = false; e.target.textContent = "もう一度さがす"; }
+    } catch (err) { fail(err); } finally { e.target.disabled = false; e.target.textContent = "もう一度探す"; }
   };
 }
 
@@ -1498,7 +1590,7 @@ function issueHtml(i, sid) {
   const ico = { error: "⛔", warn: "⚠️", info: "💡" }[i.level] || "💡";
   let act = "";
   if (i.action && i.action.type === "disable") act = `<button class="btn sm" data-act="disable" data-path="${esc(i.action.path)}">OFFにする</button>`;
-  if (i.action && i.action.type === "install_dep") act = `<button class="btn sm primary" data-act="dep" data-dep="${esc(i.action.id)}">前提MODを入れる</button> <button class="btn sm ghost" data-act="ignore" data-dep="${esc(i.action.id)}" title="まちがいの警告のとき、今後は出さないようにします">この警告は出さない</button>`;
+  if (i.action && i.action.type === "install_dep") act = `<button class="btn sm primary" data-act="dep" data-dep="${esc(i.action.id)}">前提MODを入れる</button> <button class="btn sm ghost" data-act="ignore" data-dep="${esc(i.action.id)}" title="間違いの警告のとき、今後は出さないようにします">この警告は出さない</button>`;
   if (i.action && i.action.type === "kill_java") act = `<button class="btn sm danger" data-act="killjava">残っているjavaを確認する</button>`;
   return `<div class="issue ${i.level}"><div class="ico" aria-hidden="true">${ico}</div><div>
     <div class="tt">${esc(i.title)}</div><div class="small">${esc(i.detail || "")}</div>${i.fix ? `<div class="fx">どうする？ ${esc(i.fix)}</div>` : ""}</div>
@@ -1518,7 +1610,7 @@ function bindIssueActions(root, s, after) {
         toast("OFFにしました。もう一度起動してみてください。");
         b.disabled = true; b.textContent = "OFFにしました";
       } else if (b.dataset.act === "ignore") {
-        if (!(await ask("この警告を出さなくします", `<p>「${esc(b.dataset.dep)}」が足りない、という警告を、このサーバーでは<b>出さない</b>ようにします。</p><p class="small muted">まちがった警告のときだけにしてください。本当に足りないと、サーバーが止まります。</p>`, "出さない"))) return;
+        if (!(await ask("この警告を出さなくします", `<p>「${esc(b.dataset.dep)}」が足りない、という警告を、このサーバーでは<b>出さない</b>ようにします。</p><p class="small muted">間違った警告のときだけにしてください。本当に足りないと、サーバーが止まります。</p>`, "出さない"))) return;
         await api("ignore_dep", { server: s.id, id: b.dataset.dep });
         toast("この警告は出さなくしました");
         b.disabled = true; b.textContent = "出さなくしました";
@@ -1551,9 +1643,9 @@ async function bootTest(s, out) {
     const issues = [...(r.issues || []), ...(r.check || []).filter((i) => i.level === "error")];
     out.innerHTML = `<div class="note error" style="margin-top:14px"><b>✖ 起動できませんでした${r.reason ? "（" + esc(r.reason) + "）" : ""}</b>考えられる原因です。直してから、もう一度テストしてください。</div>
       <div class="stack" style="margin-top:12px">${issues.length ? issues.map((i) => issueHtml(i, s.id)).join("") : `<p class="muted">ログからは、はっきりした原因が見つかりませんでした。</p>`}</div>
-      <div class="panel" style="margin-top:14px"><h3>原因のMODを自動でさがす</h3>
-        <p class="small muted">MODを半分ずつ一時的にOFFにして起動を試し、原因を1つにしぼります。何回か起動するので時間がかかります（目安 ${Math.max(3, Math.round((r.seconds || 60) * 8 / 60))}分くらい）。終わったら（途中で止めても）MODは全部元にもどします。</p>
-        <button class="btn primary" data-culprit>原因のMODをさがす</button><div data-culres></div></div>`;
+      <div class="panel" style="margin-top:14px"><h3>原因のMODを自動で探す</h3>
+        <p class="small muted">MODを半分ずつ一時的にOFFにして起動を試し、原因を1つにしぼります。何回か起動するので時間がかかります（目安 ${Math.max(3, Math.round((r.seconds || 60) * 8 / 60))}分くらい）。終わったら（途中で止めても）MODは全部元に戻します。</p>
+        <button class="btn primary" data-culprit>原因のMODを探す</button><div data-culres></div></div>`;
     bindIssueActions(out, s);
     $("[data-culprit]", out).onclick = () => findCulprit(s, $("[data-culres]", out));
   } catch (e) { if (!e.shown) fail(e); }
@@ -1561,7 +1653,7 @@ async function bootTest(s, out) {
 
 async function findCulprit(s, out) {
   try {
-    const r = await runJob(api("find_culprit", { id: s.id }), "原因のMODをさがしています", { cancellable: true, note: "何回か起動を試します。終わるまで待ってください。" });
+    const r = await runJob(api("find_culprit", { id: s.id }), "原因のMODを探しています", { cancellable: true, note: "何回か起動を試します。終わるまで待ってください。" });
     if (r.found) {
       out.innerHTML = `<div class="note error" style="margin-top:12px"><b>原因は「${esc(r.name)}」です</b>
         ${r.also && r.also.length ? `<p>このMODを必要としている ${r.also.map(esc).join("、")} も、一緒にOFFにする必要があります。</p>` : ""}
@@ -1585,7 +1677,7 @@ function tabCheck(body, s) {
       <div data-bootres></div></div>
     <div class="grid2">
     <div><h3>相性チェック ${help("conflict")}</h3>
-      <p class="muted">入っているMODの中身を読んで、いっしょに使うと問題が起きる組み合わせをさがします。サーバーを起動する前にやると安心です。</p>
+      <p class="muted">入っているMODの中身を読んで、いっしょに使うと問題が起きる組み合わせを探します。サーバーを起動する前にやると安心です。</p>
       <ul class="small muted" style="padding-left:1.3em;margin-top:0"><li>種類（Fabric / Forge / NeoForge）がサーバーと合っているか</li><li>同じMODが2つ入っていないか</li><li>前提MODが足りているか</li><li>「一緒に使えない」組み合わせ・同じ役割のMODがないか</li><li>遊ぶ人専用のMODがサーバーに入っていないか</li><li>マイクラのバージョンが合っているか</li></ul>
       <button class="btn primary big" data-run>相性チェックをする</button></div>
     <div><h3>止まった原因を調べる</h3>
@@ -1685,7 +1777,7 @@ function lineChart(el, samples, cfg, alloc) {
 }
 
 async function tabPerf(body, s) {
-  body.innerHTML = `<div data-perf><div class="empty">読みこんでいます…</div></div><hr class="sep"><div data-opt></div><hr class="sep"><div data-lag></div><hr class="sep"><div data-pregen></div>`;
+  body.innerHTML = `<div data-perf><div class="empty">読み込んでいます…</div></div><hr class="sep"><div data-opt></div><hr class="sep"><div data-lag></div><hr class="sep"><div data-pregen></div>`;
   await renderPerf($("[data-perf]", body), s);
   renderOptimize($("[data-opt]", body), s);
   renderLag($("[data-lag]", body), s);
@@ -1712,7 +1804,7 @@ async function renderPerf(el, s) {
         <div class="ico" aria-hidden="true">${{ error: "⛔", warn: "⚠️", ok: "✅" }[a.level] || "💡"}</div><div><div class="tt">${esc(a.title)}</div><div class="small">${esc(a.text)}</div></div>
         <div>${a.action ? `<button class="btn sm ${a.action.type === "install" ? "primary" : ""}" data-adv="${i}">${a.action.type === "install" ? "まとめて入れる" : "設定を開く"}</button>` : ""}</div></div>`).join("")
       : `<p class="muted">${d.running ? "データを集めています…" : "サーバーを起動すると表示されます。"}</p>`}</div>
-    <details style="margin-top:14px"><summary class="small muted" style="cursor:pointer">TPS とは？（くわしく）</summary>
+    <details style="margin-top:14px"><summary class="small muted" style="cursor:pointer">TPS とは？（詳しく）</summary>
       <p class="small" style="margin-top:8px">マイクラのサーバーは、1秒に20回「世界を1コマ進める」計算をしています。この回数が TPS です。20 なら快適、15 を下回ると、ブロックや生き物の動きがおそく・カクカクになります。重くなる主な原因は、MODの多さ、見える距離・動く範囲の広さ、たくさんの機械や生き物、新しい地形の生成です。</p></details>`;
   for (const c of PERF_CHARTS) lineChart($(`[data-chart="${c.key}"]`, el), d.samples, c, d.alloc);
   $$("[data-adv]", el).forEach((b) => (b.onclick = async () => {
@@ -1728,7 +1820,7 @@ async function renderOptimize(el, s) {
   try { d = await api("optimize_plan", { id: s.id }); } catch (e) { el.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   if (!el.isConnected) return;
   const real = d.items.filter((it) => it.kind !== "info");
-  el.innerHTML = `<div class="row"><h2 class="grow">ワンクリック最適化</h2>${d.undo_at ? `<button class="btn sm ghost" data-undo>前回（${esc(d.undo_at)}）の変更を元にもどす</button>` : ""}</div>
+  el.innerHTML = `<div class="row"><h2 class="grow">ワンクリック最適化</h2>${d.undo_at ? `<button class="btn sm ghost" data-undo>前回（${esc(d.undo_at)}）の変更を元に戻す</button>` : ""}</div>
     <p class="muted" style="max-width:76ch">あなたのPC（メモリ ${gb(d.ram_mb)}・CPU ${d.cpus}コア）と、MOD ${d.mods}個に合わせて、重くなりやすい設定をちょうどいい値にします。チェックを外したものは変えません。</p>
     ${real.length ? `<div class="list" data-opts>${d.items.map((it, i) => it.kind === "info"
       ? `<div class="item noselect"><span class="slot sm"><span class="letter">i</span></span><div><div class="t">${esc(it.label)}</div><div class="s">${esc(it.why)}</div></div><span></span></div>`
@@ -1736,12 +1828,12 @@ async function renderOptimize(el, s) {
         <span class="slot sm"><span class="letter">${it.kind === "memory" ? "M" : it.kind === "yaml" ? "P" : "S"}</span></span>
         <div><div class="t">${esc(it.label)}　<span class="small muted">${esc(it.current)} → </span><b style="color:var(--ok-text)">${esc(it.new)}</b>${it.risky ? ' <span class="badge warn">注意</span>' : ""}</div>
           <div class="s" style="-webkit-line-clamp:4">${esc(it.why)}</div><div class="small faint">${esc(it.file)}</div></div><span></span></label>`).join("")}</div>
-      <div class="row" style="margin-top:12px"><button class="btn primary" data-apply>チェックしたものを変える</button><span class="small muted">変える前の値は記録しておくので、あとで元にもどせます。</span></div>`
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-apply>チェックしたものを変える</button><span class="small muted">変える前の値は記録しておくので、あとで元に戻せます。</span></div>`
       : `<div class="note ok"><b>もう最適な設定です</b>今のPCとMODの数なら、変えたほうがいい設定は見つかりませんでした。</div>
         ${d.items.map((it) => `<div class="note" style="margin-top:8px"><b>${esc(it.label)}</b>${esc(it.why)}</div>`).join("")}`}
     ${d.perf_mods.length ? `<div class="issue" style="margin-top:14px"><div class="ico" aria-hidden="true">🚀</div><div><div class="tt">軽量化${modWord(s)}も入れる</div><div class="small">${d.perf_mods.map((m) => `${esc(m.title)}（${esc(m.desc)}）`).join("、")}</div></div>
       <div><button class="btn sm primary" data-perfmods>まとめて入れる</button></div></div>` : ""}
-    <p class="small faint" style="margin-top:10px">Java の設定: ${esc(d.jvm)}。メモリの量に合わせて自動で切りかえます。</p>`;
+    <p class="small faint" style="margin-top:10px">Java の設定: ${esc(d.jvm)}。メモリの量に合わせて自動で切り替えます。</p>`;
   const ap = $("[data-apply]", el);
   if (ap) ap.onclick = async () => {
     const ids = $$("[data-opts] input:checked", el).map((x) => x.value);
@@ -1755,14 +1847,14 @@ async function renderOptimize(el, s) {
   };
   const un = $("[data-undo]", el);
   if (un) un.onclick = async () => {
-    if (!(await ask("元にもどす", "<p>前回の最適化で変えた設定を、変える前の値にもどしますか？</p>", "元にもどす"))) return;
-    try { const r = await api("optimize_undo", { id: s.id }); toast(`${r.restored}個の設定を元にもどしました`); renderOptimize(el, s); } catch (e) { fail(e); }
+    if (!(await ask("元に戻す", "<p>前回の最適化で変えた設定を、変える前の値に戻しますか？</p>", "元に戻す"))) return;
+    try { const r = await api("optimize_undo", { id: s.id }); toast(`${r.restored}個の設定を元に戻しました`); renderOptimize(el, s); } catch (e) { fail(e); }
   };
   const pm = $("[data-perfmods]", el);
   if (pm) pm.onclick = async () => { const r = await installMods(s.id, d.perf_mods.map((m) => m.id)); if (r) renderOptimize(el, s); };
 }
 
-// ---------------- 重さの原因さがし・お掃除 ----------------
+// ---------------- 重さの原因探し・お掃除 ----------------
 async function renderLag(el, s, result) {
   let info_;
   try { info_ = await api("server_info", { id: s.id }); } catch (e) { el.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
@@ -1770,14 +1862,14 @@ async function renderLag(el, s, result) {
   const running = info_.status === "running";
   const rows = result ? result.rows : [];
   const clearable = rows.filter((r) => r.clearable);
-  el.innerHTML = `<h2>重さの原因さがし・お掃除</h2>
+  el.innerHTML = `<h2>重さの原因探し・お掃除</h2>
     <p class="muted" style="max-width:76ch">落ちているアイテム・経験値・生き物がどこに、どれだけたまっているかを数えます。たまりすぎは、重さ（TPSが下がる）の一番多い原因です。</p>
     <div class="row"><button class="btn primary" data-scan ${running ? "" : "disabled"}>今のようすを数える</button>${running ? "" : '<span class="small muted">サーバーを起動すると使えます</span>'}</div>
     ${result ? `<div style="margin-top:14px">
       ${result.advice.length ? result.advice.map((a) => `<div class="note warn" style="margin-bottom:8px">${esc(a)}</div>`).join("") : `<div class="note ok"><b>たまりすぎは見つかりませんでした</b>全部で ${fmtNum(result.total)}個（${esc(result.at)} 時点）。</div>`}
       <div class="grid2" style="margin-top:12px">
         <div class="panel"><h3>多いもの</h3>${rows.length ? `<table class="tbl"><thead><tr><th>場所</th><th>種類</th><th>数</th></tr></thead><tbody>${rows.slice(0, 15).map((r) => `<tr><td>${esc(r.dim_label)}</td><td>${esc(r.label)}</td><td><b>${fmtNum(r.count)}</b></td></tr>`).join("")}</tbody></table>` : '<p class="muted">ほとんどありません</p>'}</div>
-        <div class="panel"><h3>プレイヤーのまわり（64ブロック以内）</h3>${result.near.length ? `<table class="tbl"><thead><tr><th>プレイヤー</th><th>生き物・物</th><th>アイテム</th></tr></thead><tbody>${result.near.map((n) => `<tr><td>${esc(n.player)}</td><td><b>${fmtNum(n.count)}</b></td><td>${fmtNum(n.items)}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">だれもいません</p>'}</div>
+        <div class="panel"><h3>プレイヤーのまわり（64ブロック以内）</h3>${result.near.length ? `<table class="tbl"><thead><tr><th>プレイヤー</th><th>生き物・物</th><th>アイテム</th></tr></thead><tbody>${result.near.map((n) => `<tr><td>${esc(n.player)}</td><td><b>${fmtNum(n.count)}</b></td><td>${fmtNum(n.items)}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">誰もいません</p>'}</div>
       </div></div>` : ""}
     <div class="panel" style="margin-top:14px"><h3>お掃除</h3>
       <p class="small muted">消すのは「落ちているアイテム・経験値・矢」だけです。生き物や、チェストの中身は消えません。</p>
@@ -1789,7 +1881,7 @@ async function renderLag(el, s, result) {
     </div>`;
   const sc = $("[data-scan]", el);
   sc.onclick = async () => {
-    try { const r = await runJob(api("lag_scan", { id: s.id }), "重さの原因をさがしています", { cancellable: true }); if (r && !r.cancelled) renderLag(el, s, r); } catch (e) { if (!e.shown) fail(e); }
+    try { const r = await runJob(api("lag_scan", { id: s.id }), "重さの原因を探しています", { cancellable: true }); if (r && !r.cancelled) renderLag(el, s, r); } catch (e) { if (!e.shown) fail(e); }
   };
   const types = () => $$("[data-ct]:checked", el).map((x) => x.value);
   $("[data-clear]", el).onclick = async () => {
@@ -1823,7 +1915,7 @@ async function renderPregen(el, s) {
   const active = states.find(([, v]) => ["running", "started", "paused"].includes(v.status));
   const est = d.estimates;
   el.innerHTML = head + `
-    ${!d.running ? `<div class="note" style="margin-bottom:12px"><b>サーバーを起動すると始められます</b>事前生成はサーバーが動いている間に進みます。友達が遊んでいる間は重くなるので、だれもいない時間がおすすめです。</div>` : ""}
+    ${!d.running ? `<div class="note" style="margin-bottom:12px"><b>サーバーを起動すると始められます</b>事前生成はサーバーが動いている間に進みます。友達が遊んでいる間は重くなるので、誰もいない時間がおすすめです。</div>` : ""}
     ${d.needs_restart ? `<div class="note warn" style="margin-bottom:12px"><b>サーバーの再起動が必要です</b>Chunky を入れたあとに再起動していません。</div>` : ""}
     ${states.map(([dim, v]) => {
       const name = (d.dims.find(([k]) => k === dim) || [dim, dim])[1];
@@ -1852,22 +1944,23 @@ async function renderPregen(el, s) {
 
 // ---------------- 友達を呼ぶ（公開・ポート） ----------------
 async function tabPublic(body, s) {
-  body.innerHTML = `<div class="empty">読みこんでいます…</div>`;
+  body.innerHTML = `<div class="empty">読み込んでいます…</div>`;
   let p;
   try { p = await api("public_info", { id: s.id }); } catch (e) { body.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   body.innerHTML = `
     <h2>友達がインターネットから入れるようにする</h2>
     <p class="lead">友達のマイクラから、あなたのPCのサーバーまで「道」を作ります。下の方法から1つ選んで、できたアドレスを一番下の欄に保存してください。</p>
 
+    <div class="sec panel" data-netdiag></div>
+
     <div class="sec panel">
-      <div class="row"><h3 class="grow">いちばんおすすめ: playit.gg を使う ${help("playit")}</h3><span class="badge ok">ルーターの設定なし・無料</span></div>
+      <div class="row"><h3 class="grow">一番おすすめ: playit.gg を使う ${help("playit")}</h3><span class="badge ok">ルーターの設定なし・無料</span></div>
       <ol class="steps" style="margin-top:14px">
         <li><b>「playit を起動」を押す</b><span class="muted">黒い画面が開きます。遊んでいる間は閉じないでください。</span></li>
         <li><b>アカウントを作ってつなぐ</b><span class="muted">黒い画面に出る <span class="kbd">https://playit.gg/claim/…</span> をブラウザで開き、アカウントを作って「Claim」を押します（初回だけ）。</span></li>
         <li><b>トンネルを作る</b><span class="muted">playit.gg のサイトで「Add Tunnel」→「Minecraft Java」を選び、Local Port を <b style="color:var(--bone)">${p.port}</b> にします（初回だけ）。</span></li>
         <li><b>アドレスを貼る</b><span class="muted">サイトに出たアドレス（例: <span class="kbd">xxxx.joinmc.link</span>）を、一番下の欄に貼って保存します。</span></li>
       </ol>
-      <p class="muted" style="margin:10px 0 0;font-size:13px;line-height:1.7"><b>ずっと無料です。</b>「初回だけ」なのはアカウントとトンネルを作る手順です。無料プランは入口（ポート）4つまで＝<b>サーバー4つまで同時に公開</b>できます（5つ以上はPremium）。サーバーごとにポート番号を変え（例: 25565 と 25566）、playit のサイトでサーバーごとにトンネルを作って、Local Port を合わせてください。</p>
       <div class="row"><button class="btn primary" data-playit>${p.playit ? "playit を止める" : "▶ playit を起動"}</button>
         <button class="btn" data-url="https://playit.gg/account/tunnels">playit.gg のサイトを開く</button>
         ${p.playit ? '<span class="badge ok">playit 動作中</span>' : ""}</div>
@@ -1904,13 +1997,13 @@ async function tabPublic(body, s) {
         playit は「<b>どの番号の部屋に案内するか</b>」を覚えています。サーバーの番号を変えると、案内先がずれて友達が入れなくなります。
         <ol class="small" style="margin:8px 0 0 1.3em"><li>このサーバーの今のポート番号は <b style="font-size:16px">${p.port}</b> です。</li>
           <li>playit の黒い画面で、<span class="kbd">アドレス =&gt; 127.0.0.1:番号</span> の行を見ます。<b>この番号が ${p.port} と同じ</b>なら、直す必要はありません。</li>
-          <li>ちがうときは、「playit.gg のサイトを開く」→「Tunnels」→ 使っているトンネルを開いて、<b>Local Port を ${p.port}</b> に変えて保存します。（「Edit」などの変更ボタンがない場合は、トンネルを作り直してください。アドレスが変わるので、保存し直しも必要です）</li>
+          <li>違うときは、「playit.gg のサイトを開く」→「Tunnels」→ 使っているトンネルを開いて、<b>Local Port を ${p.port}</b> に変えて保存します。（「Edit」などの変更ボタンがない場合は、トンネルを作り直してください。アドレスが変わるので、保存し直しも必要です）</li>
           <li>playit の黒い画面を、いったん閉じて「▶ playit を起動」で開き直すと、確実です。</li></ol>
-        <div class="small muted" style="margin-top:6px">いちばんかんたんなのは、<b>すべてのサーバーのポートを同じ番号（25565）にする</b>ことです。「ソフトの設定」で選べます。同時に2つ動かさないなら、これで設定を変える必要がなくなります。</div></div>
-      <details style="margin-top:16px"><summary style="cursor:pointer;font-weight:700">自分でルーターのポート開放をするには（くわしい人向け）</summary>
+        <div class="small muted" style="margin-top:6px">一番かんたんなのは、<b>すべてのサーバーのポートを同じ番号（25565）にする</b>ことです。「ソフトの設定」で選べます。同時に2つ動かさないなら、これで設定を変える必要がなくなります。</div></div>
+      <details style="margin-top:16px"><summary style="cursor:pointer;font-weight:700">自分でルーターのポート開放をするには（詳しい人向け）</summary>
         <ol class="steps" style="margin-top:14px">
           <li><b>ルーターの設定画面を開く</b><span class="muted">ブラウザで <button class="linkbtn" data-url="http://${esc(p.gateway || "192.168.1.1")}/">http://${esc(p.gateway || "192.168.1.1")}/</button> を開きます。ログインのIDとパスワードは、ルーター本体のシールか説明書に書いてあります。</span></li>
-          <li><b>ポート開放の画面をさがす</b><span class="muted">メーカーによって名前がちがいます。<br>NEC（Aterm）: 「詳細設定」→「ポートマッピング設定」<br>バッファロー: 「詳細設定」→「セキュリティー」→「ポート変換」<br>NTT のホームゲートウェイ: 「詳細設定」→「静的IPマスカレード設定」<br>そのほか: 「ポートフォワーディング」「仮想サーバー」など</span></li>
+          <li><b>ポート開放の画面を探す</b><span class="muted">メーカーによって名前が違います。<br>NEC（Aterm）: 「詳細設定」→「ポートマッピング設定」<br>バッファロー: 「詳細設定」→「セキュリティー」→「ポート変換」<br>NTT のホームゲートウェイ: 「詳細設定」→「静的IPマスカレード設定」<br>そのほか: 「ポートフォワーディング」「仮想サーバー」など</span></li>
           <li><b>設定を追加する</b><span class="muted">プロトコル: <b style="color:var(--bone)">TCP</b>、ポート: <b style="color:var(--bone)">${p.port}</b>、転送先（LAN側のIPアドレス）: <b style="color:var(--bone)">${esc(p.local_ip)}</b> を入れて保存します。</span></li>
           <li><b>このPCのアドレスを固定する（おすすめ）</b><span class="muted">PCのアドレス（${esc(p.local_ip)}）は、ルーターの再起動で変わることがあります。変わるとつながらなくなるので、ルーターの「DHCP固定割当」などで固定しておくと安心です。</span></li>
           <li><b>インターネット側のアドレスを調べる</b><span class="muted"><button class="linkbtn" data-gip>あなたの家のアドレスを調べる</button> <span data-gipout></span><br>これ（ポートが 25565 以外なら「:番号」をつける）を友達に伝えます。</span></li>
@@ -1921,7 +2014,7 @@ async function tabPublic(body, s) {
 
     <div class="sec panel" style="border-top:3px solid var(--oak)">
       <h3>友達に伝えるアドレス</h3>
-      ${p.port_mismatch ? `<div class="note warn" style="margin-top:8px"><b>アドレスのポート番号が、サーバーのポート番号（${p.port}）とちがいます</b>ポート番号を変えたときは、アドレスの後ろの「:番号」も変えてください（25565 なら書かなくてOK）。</div>` : ""}
+      ${p.port_mismatch ? `<div class="note warn" style="margin-top:8px"><b>アドレスのポート番号が、サーバーのポート番号（${p.port}）と違います</b>ポート番号を変えたときは、アドレスの後ろの「:番号」も変えてください（25565 なら書かなくてOK）。</div>` : ""}
       <div class="inline-field" style="margin-top:10px"><input type="text" data-addr value="${esc(p.address)}" placeholder="例: xxxx.joinmc.link　または　1.2.3.4:25565" style="font:700 18px var(--mono)">
         <button class="btn primary" data-save>保存</button><button class="btn" data-copy>コピー</button></div>
       <p class="hint">保存したアドレスは友達用パックにも入り、友達のマイクラのサーバー一覧に最初から表示されます。</p>
@@ -1936,6 +2029,7 @@ async function tabPublic(body, s) {
   const addr = $("[data-addr]", body);
   const save = async (v) => { addr.value = v; await api("set_address", { id: s.id, address: v }); toast("アドレスを保存しました"); refreshState(); renderInvite($("[data-invite]", body), s); };
   $("[data-save]", body).onclick = () => save(addr.value.trim()).catch(fail);
+  renderNetDiag($("[data-netdiag]", body), s, save);
   $("[data-copy]", body).onclick = () => { navigator.clipboard.writeText(addr.value); toast("コピーしました。LINE や Discord に貼って送りましょう"); };
   $("[data-uselan]", body).onclick = () => save(p.lan_address).catch(fail);
   $("[data-playit]", body).onclick = async () => {
@@ -1946,7 +2040,7 @@ async function tabPublic(body, s) {
     } catch (e) { if (!e.shown) fail(e); }
   };
   $("[data-upnp]", body).onclick = async (e) => {
-    e.target.disabled = true; e.target.textContent = "ルーターをさがしています…";
+    e.target.disabled = true; e.target.textContent = "ルーターを探しています…";
     try { const r = await api("upnp_open", { id: s.id }); addr.value = r.address; toast("ポートを開けました: " + r.address); refreshState(); }
     catch (err) { await info("自動ポート開放ができませんでした", `<p>${esc(err.message)}</p><p>playit.gg を使う方法がおすすめです。</p>`); }
     finally { e.target.disabled = false; e.target.textContent = "ポートを開ける"; }
@@ -2059,7 +2153,7 @@ async function renderDdns(el, s, useAddr) {
 
 // ---------------- 友達用パック ----------------
 async function tabPack(body, s) {
-  body.innerHTML = `<div class="empty">読みこんでいます…</div>`;
+  body.innerHTML = `<div class="empty">読み込んでいます…</div>`;
   let p;
   try { p = await api("pack_tab", { server: s.id }); } catch (e) { body.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   const req = p.items.filter((i) => i.need === "required"), opt = p.items.filter((i) => i.need !== "required");
@@ -2072,10 +2166,10 @@ async function tabPack(body, s) {
         <div class="chips" style="margin-top:10px"><span class="badge">今のパック ${esc(ps.version || "まだありません")}</span>
           ${ps.outdated ? (ps.auto && ps.enabled ? '<span class="badge warn">MODが変わりました（まもなく自動で作り直します）</span>' : '<span class="badge warn">MODが変わりました（次の起動で新しくなります）</span>') : ps.exported ? '<span class="badge ok">最新</span>' : ""}
           ${ps.gateway ? `<span class="badge ok">配っています</span><span class="badge">ダウンロード ${ps.downloads}回</span>` : ps.enabled ? '<span class="badge">サーバーを起動すると配り始めます</span>' : ""}</div>
-        ${ps.enabled ? `<div class="row" style="margin-top:12px;gap:10px"><label class="switch"><input type="checkbox" data-packauto ${ps.auto ? "checked" : ""}><span></span></label>
+        ${ps.enabled ? `<div class="row" style="margin-top:12px;gap:10px;flex-wrap:nowrap;align-items:flex-start"><label class="switch" style="flex:none"><input type="checkbox" data-packauto ${ps.auto ? "checked" : ""}><span></span></label>
           <div><b>MODを変えたら、すぐに自動で作り直す</b><div class="small muted">サーバーが動いていても、止まっていても、MODの追加・更新・削除のあと（約30秒後）に新しいパックを作ります。友達のソフトに「更新があります」と出て、何が変わったかも見えます。</div></div></div>
           ${ps.auto_text ? `<p class="hint" style="margin-top:8px">📦 ${esc(ps.auto_text)}${ps.auto_time ? "（" + new Date(ps.auto_time * 1000).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) + "）" : ""}</p>` : ""}` : ""}
-        ${ps.enabled ? `<p class="hint">※ この機能がONのとき、サーバーの記録（ログ）では、参加者のIPアドレスが 127.0.0.1 と表示されます（playit を使うときも同じです）。うまく入れないときは、OFFにすると前と同じつなぎ方にもどります（次の起動から）。</p>` : ""}
+        ${ps.enabled ? `<p class="hint">※ この機能がONのとき、サーバーの記録（ログ）では、参加者のIPアドレスが 127.0.0.1 と表示されます（playit を使うときも同じです）。うまく入れないときは、OFFにすると前と同じつなぎ方に戻ります（次の起動から）。</p>` : ""}
       </div></div></div>` : ""}
     <div class="grid2">
     <div>
@@ -2172,7 +2266,7 @@ async function tabMembers(body, s) {
       <div class="t">${esc(n)}</div>${cpBtn(n, "名前", "名前")}${cpIdBtn(n)}<button class="btn sm ghost" data-rm="${kind}" data-name="${esc(n)}">外す</button></div>`).join("") || `<p class="faint small">まだいません</p>`}</div></div>`;
   body.innerHTML = `<div class="row" style="margin-bottom:16px"><label class="switch"><input type="checkbox" data-wl ${m.enabled ? "checked" : ""}><span></span></label>
       <div><b>ホワイトリストを使う</b>（おすすめ） ${help("whitelist")}<div class="small muted">ON だと、下の名簿にいる人しか入れません。知らない人が入ってこないので安全です。</div></div></div>
-    ${m.enabled ? "" : `<div class="note warn" style="margin-bottom:16px"><b>今はだれでも入れます</b>アドレスを知っている人なら、知らない人でも入れる状態です。</div>`}
+    ${m.enabled ? "" : `<div class="note warn" style="margin-bottom:16px"><b>今は誰でも入れます</b>アドレスを知っている人なら、知らない人でも入れる状態です。</div>`}
     <div class="grid2">${col("whitelist", "入っていい人", "whitelist", "友達のマイクラの名前を、大文字・小文字も正確に入れてください。")}
     ${col("ops", "OP（管理者）", "op", "コマンドが使える人です。信頼できる人だけにしましょう。")}</div>
     <div data-appl></div><div data-intr></div><div data-bans></div><div data-play></div>`;
@@ -2207,10 +2301,10 @@ async function renderIntrusions(el, s) {
     <table class="tbl" style="margin-top:8px"><thead><tr><th>だれ</th><th>IPアドレス</th><th>理由</th><th>回数</th><th>最後</th><th></th></tr></thead><tbody>
     ${d.items.map((x, i) => `<tr><td><b>${esc(x.name || "（名前なし）")}</b> ${x.name ? cpBtn(x.name, "名前", "名前") : ""}</td><td class="small">${esc(x.ip || "?")} ${x.ip ? cpBtn(x.ip, "コピー", "IPアドレス") : ""}${d.banned_ips.includes(x.ip) ? ' <span class="badge ng">BAN中</span>' : ""}</td><td class="small">${esc(x.reason)}</td><td>${x.count}</td><td class="small">${esc(x.last_text)}</td>
       <td style="text-align:right">${x.ip && !d.banned_ips.includes(x.ip) && !/^127\./.test(x.ip) ? `<button class="btn sm danger" data-iban="${esc(x.ip)}">IP BAN</button>` : ""}${x.name && x.kind === "rejected" ? `<button class="btn sm" data-iwl="${esc(x.name)}" title="知り合いだったら">名簿に入れる</button>` : ""}</td></tr>`).join("")}
-    </tbody></table><p class="hint">IP BAN すると、その場所からはサーバーにつなげなくなります（このソフトの門番がことわります）。友達だったときは「名簿に入れる」を押します。</p></div>`;
+    </tbody></table><p class="hint">IP BAN すると、その場所からはサーバーにつなげなくなります（このソフトの門番が断ります）。友達だったときは「名簿に入れる」を押します。</p></div>`;
   $("[data-iclr]", el).onclick = async () => { await api("intrusions_clear", { id: s.id }).catch(fail); renderIntrusions(el, s); };
   $$("[data-iban]", el).forEach((b) => (b.onclick = async () => {
-    if (!(await ask("IP BAN", `<p>${esc(b.dataset.iban)} からのアクセスをことわりますか？</p>`, "BAN する", { danger: true }))) return;
+    if (!(await ask("IP BAN", `<p>${esc(b.dataset.iban)} からのアクセスを断りますか？</p>`, "BAN する", { danger: true }))) return;
     try { await api("ban_add", { id: s.id, kind: "ip", target: b.dataset.iban, reason: "あやしいアクセス" }); toast("BAN しました"); renderIntrusions(el, s); } catch (e) { fail(e); }
   }));
   $$("[data-iwl]", el).forEach((b) => (b.onclick = async () => {
@@ -2239,7 +2333,7 @@ async function renderPlaytime(el, s, days = 30) {
         <div style="display:flex;align-items:flex-end;gap:2px;height:60px;margin-top:6px">${d.hours.map((h, i) => `<div title="${i}時: ${h}分" style="flex:1;background:var(--diamond);height:${Math.max(2, (h / hmax) * 100)}%;box-shadow:0 0 0 1px var(--edge)"></div>`).join("")}</div>
         <div class="row small faint" style="justify-content:space-between"><span>0時</span><span>12時</span><span>23時</span></div>
         <p class="small" style="margin-top:8px">全員の合計: <b>${esc(d.total_text)}</b></p></div></div>`
-      : `<p class="muted" style="margin-top:8px">まだ記録がありません。だれかが遊ぶと、ここに時間が記録されます。</p>`}</div>`;
+      : `<p class="muted" style="margin-top:8px">まだ記録がありません。誰かが遊ぶと、ここに時間が記録されます。</p>`}</div>`;
   $("[data-days]", el).onchange = (e) => renderPlaytime(el, s, +e.target.value);
 }
 
@@ -2248,21 +2342,21 @@ async function tabBackup(body, s) {
   let b;
   try { b = await api("backups", { id: s.id }); } catch (e) { body.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   body.innerHTML = `<h2>ワンクリック巻き戻し ${help("backup")}</h2>
-    <p class="muted" style="max-width:76ch">荒らし・TNTの大爆発・火事などがあったとき、ワールドを前の状態にもどします。サーバーが動いていても、自動で止めて → もどして → 起動し直します（今のワールドも念のため保存します）。</p>
+    <p class="muted" style="max-width:76ch">荒らし・TNTの大爆発・火事などがあったとき、ワールドを前の状態に戻します。サーバーが動いていても、自動で止めて → 戻して → 起動し直します（今のワールドも念のため保存します）。</p>
     <div class="grid3" style="margin-top:10px">${b.rollback.map((t) => `<button class="choice" data-rb="${esc(t.file || "")}" ${t.file ? "" : "disabled"} style="${t.file ? "" : "opacity:.55;cursor:not-allowed"}">
         <span class="slot"><span class="letter">⟲</span></span><div><b>${esc(t.label)}</b><span>${t.file ? `${esc(t.when)} のバックアップ（${esc(t.ago)}）` : "まだその時間のバックアップがありません"}</span></div></button>`).join("")}</div>
     <hr class="sep">
     <div class="grid2"><div><h2>バックアップ</h2>
-      <p class="muted">ワールドのコピーです。MODを入れる前や更新の前にとっておくと、何かあってももどせます。</p>
+      <p class="muted">ワールドのコピーです。MODを入れる前や更新の前にとっておくと、何かあっても戻せます。</p>
       <button class="btn primary big" data-now>今すぐバックアップ</button></div>
     <div class="panel"><h3>自動バックアップ</h3>
       <div class="row" style="margin-top:10px"><label>間かく</label><select data-int style="width:auto">${[[0, "しない"], [15, "15分ごと"], [30, "30分ごと"], [60, "1時間ごと"], [120, "2時間ごと"]].map(([v, l]) => `<option value="${v}" ${+b.interval === v ? "selected" : ""}>${l}</option>`).join("")}</select>
       <label>残す数</label><input type="number" data-keep min="1" max="100" value="${b.keep}" style="width:90px"><button class="btn sm" data-savebk>保存</button></div>
       <label class="check small" style="margin-top:10px"><input type="checkbox" data-bos ${b.backup_on_start ? "checked" : ""}> サーバーを起動する前にもバックアップする</label>
-      <p class="hint">新しいものを「残す数」だけ残し、さらに「1時間ごとに1つ（1日ぶん）」「1日ごとに1つ（1週間ぶん）」を残すので、「1時間前」「昨日」にもどせます。手動のものは消えません。</p></div></div>
+      <p class="hint">新しいものを「残す数」だけ残し、さらに「1時間ごとに1つ（1日ぶん）」「1日ごとに1つ（1週間ぶん）」を残すので、「1時間前」「昨日」に戻せます。手動のものは消えません。</p></div></div>
     <h3 style="margin-top:22px">とったバックアップ</h3>
     <table class="tbl" style="margin-top:8px"><thead><tr><th>日時</th><th>種類</th><th>大きさ</th><th></th></tr></thead><tbody>
-      ${b.backups.map((x) => `<tr><td>${esc(x.when)}</td><td>${esc(x.kind)}</td><td>${x.size_mb}MB</td><td style="text-align:right"><button class="btn sm" data-restore="${esc(x.file)}">この時点にもどす</button></td></tr>`).join("") || `<tr><td colspan="4" class="faint">まだありません</td></tr>`}
+      ${b.backups.map((x) => `<tr><td>${esc(x.when)}</td><td>${esc(x.kind)}</td><td>${x.size_mb}MB</td><td style="text-align:right"><button class="btn sm" data-restore="${esc(x.file)}">この時点に戻す</button></td></tr>`).join("") || `<tr><td colspan="4" class="faint">まだありません</td></tr>`}
     </tbody></table>
     <button class="btn sm ghost" data-open style="margin-top:10px">バックアップのフォルダを開く</button>`;
   $("[data-now]", body).onclick = async () => {
@@ -2272,7 +2366,7 @@ async function tabBackup(body, s) {
   $("[data-bos]", body).onchange = (e) => api("server_set", { id: s.id, profile: { backup_on_start: e.target.checked } }).then(() => toast("保存しました")).catch(fail);
   const doRollback = async (file, label) => {
     const running = s.status !== "stopped";
-    if (!(await ask("ワールドを巻き戻す", `<p>ワールドを <b>${esc(label)}</b> にもどしますか？</p><ul class="small"><li>それより後に作ったもの・集めたものは消えます</li><li>今のワールドも「巻き戻し前」として保存するので、まちがえてももどせます</li>${running ? "<li>動いているサーバーは、10秒前にチャットで知らせてから止め、もどしたあと起動し直します</li>" : ""}</ul>`, "巻き戻す", { danger: true }))) return;
+    if (!(await ask("ワールドを巻き戻す", `<p>ワールドを <b>${esc(label)}</b> に戻しますか？</p><ul class="small"><li>それより後に作ったもの・集めたものは消えます</li><li>今のワールドも「巻き戻し前」として保存するので、間違えても戻せます</li>${running ? "<li>動いているサーバーは、10秒前にチャットで知らせてから止め、戻したあと起動し直します</li>" : ""}</ul>`, "巻き戻す", { danger: true }))) return;
     try { const r = await runJob(api("rollback", { id: s.id, file }), "ワールドを巻き戻しています", { cancellable: true }); if (r && !r.cancelled) { toast("巻き戻しました"); refreshAll(); tabBackup(body, cur() || s); } } catch (e) { if (!e.shown) fail(e); }
   };
   $$("[data-rb]", body).forEach((btn) => (btn.onclick = () => { if (btn.dataset.rb) doRollback(btn.dataset.rb, $("b", btn).textContent); }));
@@ -2316,7 +2410,7 @@ function wizMods(body, root) {
   body.innerHTML = `<p class="muted" style="margin-top:0">入れたいMODの □ を押して選びます。カードをクリックすると、日本語の説明や画像、使えるバージョンが見られます。バージョンを決めている場合は、下の「マイクラのバージョンを指定」で、そのバージョンで使えるMODだけを表示できます。決めていない場合は、そのまま選んでください（次の画面で、一番そろうバージョンを探します）。</p>
     <div data-browser></div>
     <div class="tray"><div class="names" data-names></div>
-      <button class="btn ghost" data-back>もどる</button>
+      <button class="btn ghost" data-back>戻る</button>
       <button class="btn" data-skip>MODなしで進む</button>
       <button class="btn primary big" data-next>次へ</button></div>`;
   const upd = () => {
@@ -2370,7 +2464,7 @@ async function wizVersion(body, root) {
       </div>
       <div data-check style="margin-top:12px"></div>
     </div>
-    <div class="wizard-foot"><button class="btn ghost" data-back>もどる</button><button class="btn primary big" data-next>次へ: メモリとポート</button></div></div>`;
+    <div class="wizard-foot"><button class="btn ghost" data-back>戻る</button><button class="btn primary big" data-next>次へ: メモリとポート</button></div></div>`;
   const mcSel = $("[data-mc]", body), ldSel = $("[data-loader]", body);
   const labels = { auto: "おまかせ（選んだMODに合わせる）", fabric: "Fabric（MOD）", neoforge: "NeoForge（MOD）", forge: "Forge（MOD）",
     paper: "Paper（プラグイン・軽い）", purpur: "Purpur（プラグイン・設定が多い）", vanilla: "バニラ（公式そのまま）" };
@@ -2427,10 +2521,10 @@ async function wizMemory(body, root) {
     <div class="panel"><h3>ポート番号 ${help("port")}</h3>
       <div class="row" style="margin-top:10px"><input type="number" data-port value="${w.port}" style="width:150px"><button class="btn sm" data-pchk>空いているか確認</button><span data-pout class="small"></span></div>
       <ul class="small muted" style="padding-left:1.3em"><li>ポート番号は、PCの中の「部屋番号」です。マイクラは普通 25565 を使います。</li>
-        <li>ほかのサーバーと同時に動かすときは、ちがう番号にします（自動で空いている番号を入れています）。</li>
+        <li>ほかのサーバーと同時に動かすときは、違う番号にします（自動で空いている番号を入れています）。</li>
         <li>友達を呼ぶ方法（playit.gg やポート開放）は、作ったあとに「友達を呼ぶ」タブで案内します。</li></ul>
     </div>
-    <div class="wizard-foot"><button class="btn ghost" data-back>もどる</button><button class="btn primary big" data-next>次へ: 確認</button></div></div>`;
+    <div class="wizard-foot"><button class="btn ghost" data-back>戻る</button><button class="btn primary big" data-next>次へ: 確認</button></div></div>`;
   bindMemory($("[data-mem]", body), adv, S.settings.self_play, (v) => (w.memory = v));
   $("input[type=range]", body).addEventListener("input", (e) => (w.memory = +e.target.value));
   $("[data-selfplay]", body).onchange = async (e) => { await api("set_settings", { self_play: e.target.checked }); S.settings.self_play = e.target.checked; w.memory = null; wizMemory(body, root); };
@@ -2456,7 +2550,7 @@ function wizConfirm(body, root) {
       <tr><th>MOD</th><td>${w.picked.size ? `${w.picked.size}個: ${[...w.picked.values()].map(esc).join("、")}` : "なし（あとから入れられます）"}</td></tr>
       <tr><th>メモリ</th><td>${gb(w.memory)}</td></tr><tr><th>ポート番号</th><td>${w.port}</td></tr></table>
     <p class="muted small" style="margin-top:14px">「作る」を押すと、マイクラのサーバー本体・MODの土台・Java（必要なら）・選んだMODを自動でダウンロードします。数分かかることがあります。</p>
-    <div class="wizard-foot"><button class="btn ghost" data-back>もどる</button><button class="btn primary big" data-go>サーバーを作る</button></div></div>`;
+    <div class="wizard-foot"><button class="btn ghost" data-back>戻る</button><button class="btn primary big" data-go>サーバーを作る</button></div></div>`;
   $("[data-back]", body).onclick = () => wizNext(root, 3);
   $("[data-go]", body).onclick = async () => {
     try {
@@ -2491,7 +2585,7 @@ function viewModpack(root) {
   const grid = $("[data-grid]", root);
   const hits = new Map();
   const load = async (q = "") => {
-    grid.innerHTML = `<div class="empty">さがしています…</div>`;
+    grid.innerHTML = `<div class="empty">探しています…</div>`;
     try {
       const r = await api("modpacks_search", { q });
       hits.clear();
@@ -2542,7 +2636,7 @@ function viewJoin(root) {
     : `<div class="page"><h1>友達のサーバーに参加する</h1>
     <p class="lead">友達からもらったファイル（.mrpack）か、アドレスで、同じMODがあなたのマイクラに入ります。ふだんのマイクラとは別の場所に入るので、混ざりません。</p>
     <ol class="fsteps"><li class="now"><b>①</b> アドレスを貼る</li><li><b>②</b> 「入れる」を押す</li><li><b>③</b> 「▶ 遊ぶ」を押す</li></ol>
-    <div class="note" style="margin-top:10px"><b>サーバーを立てた人（ホスト）は、ここではなく</b>サーバーの「友達用パック」タブから、自分のマイクラに入れます。くわしくは左の「入り方ガイド」へ。</div>
+    <div class="note" style="margin-top:10px"><b>サーバーを立てた人（ホスト）は、ここではなく</b>サーバーの「友達用パック」タブから、自分のマイクラに入れます。詳しくは左の「入り方ガイド」へ。</div>
     <div data-jbody style="margin-top:20px"></div></div>`;
   const body = $("[data-jbody]", root);
   if (S.joinInfo) { const ji = S.joinInfo; S.joinInfo = null; joinStep2(body, ji); return; }
@@ -2590,7 +2684,7 @@ async function renderJoined(el) {
     $("[data-play]", card).onclick = async () => {
       try {
         const r = await runJob(api("joined_play", { key: j.key }), "遊ぶ準備をしています", { note: "新しいパックがあれば入れてから、マイクラのランチャーを開きます。" });
-        await info(r.updated ? "新しいパックを入れました" : "準備できました", `<p>${r.opened ? "ランチャーを開きました。" : "マイクラのランチャーを開いてください。"}「${esc(r.name)}（マルチ用）」を選んで「プレイ」→「マルチプレイ」からサーバーに入ってください。</p>`);
+        await info(r.updated ? "新しいパックを入れました" : "準備できました", `${precheckHtml(r.check)}<p>${r.opened ? "ランチャーを開きました。" : "マイクラのランチャーを開いてください。"}「${esc(r.name)}（マルチ用）」を選んで「プレイ」→「マルチプレイ」からサーバーに入ってください。</p>`);
         renderJoined(el);
       } catch (e) { if (!e.shown) fail(e); }
     };
@@ -2720,7 +2814,7 @@ function viewGuide(root) {
       <dt>ポート番号を変えたとき</dt><dd>playit は「どの番号の部屋に案内するか」を覚えています。サーバーのポートを変えたら、playit の <b>Local Port</b> も同じ番号に変えます（「友達を呼ぶ」タブに手順があります）。<b>全部のサーバーを同じ番号にしておく</b>と、この作業はいりません。</dd>
       <dt>前提MOD</dt><dd>ほかのMODを動かすために必要なMODです。MODを入れるときに、自動で一緒に入ります。</dd></dl>`;
   } else {
-    gb_.innerHTML = `<p class="muted" style="margin-top:0">マイクラに出たメッセージから、原因と直し方をさがせます。</p>
+    gb_.innerHTML = `<p class="muted" style="margin-top:0">マイクラに出たメッセージから、原因と直し方を探せます。</p>
       <dl class="qa">${TROUBLE.map(([q, a]) => `<dt><code>${esc(q)}</code></dt><dd>${esc(a)}</dd>`).join("")}</dl>`;
   }
 }
@@ -2743,24 +2837,24 @@ function viewAppSettings(root) {
         <div class="hint">人気のMODには最初から日本語の説明があります。それ以外を無料の翻訳サービスで自動翻訳します。</div></div>
       <div class="lbl">上限のときは、予備の翻訳を使う</div>
       <div><label class="switch"><input type="checkbox" data-tf ${st.translate_fallback !== false ? "checked" : ""}><span></span></label>
-        <div class="hint">無料の翻訳には1日の上限があります。上限が来たら、予備の翻訳サービス（Google の翻訳）で訳します。<b>送るのはMODの説明文だけ</b>です。OFFにすると、上限のあいだは英語のままになります。</div></div>
+        <div class="hint">無料の翻訳には1日の上限があります。上限が来たら、予備の翻訳サービス（Google の翻訳）で訳します。<b>送るのはMODの説明文だけ</b>です。OFFにすると、上限の間は英語のままになります。</div></div>
       <div class="lbl">翻訳用のメールアドレス（任意）</div>
       <div><input type="text" data-email value="${esc(st.translate_email || "")}" placeholder="入れなくてもOK"><div class="hint">入れると、1日に翻訳できる量が増えます（翻訳サービス MyMemory に送られます）。</div></div>
       <div class="lbl">表示の量</div>
       <div>
         <label class="row" style="gap:8px;align-items:flex-start"><input type="radio" name="uimode" value="simple" ${st.ui_mode !== "detail" ? "checked" : ""}><span><b>かんたん（おすすめ）</b><span class="hint" style="display:block">よく使うタブだけを出します（ホーム・MOD・友達を呼ぶ・友達用パック・メンバー・バックアップ）。</span></span></label>
-        <label class="row" style="gap:8px;align-items:flex-start;margin-top:8px"><input type="radio" name="uimode" value="detail" ${st.ui_mode === "detail" ? "checked" : ""}><span><b>くわしい</b><span class="hint" style="display:block">起動テスト・重さ・管理コマンド・設定など、すべてのタブを出します。サーバーの画面の右上でも切りかえられます。</span></span></label>
+        <label class="row" style="gap:8px;align-items:flex-start;margin-top:8px"><input type="radio" name="uimode" value="detail" ${st.ui_mode === "detail" ? "checked" : ""}><span><b>詳しい</b><span class="hint" style="display:block">起動テスト・重さ・管理コマンド・設定など、すべてのタブを出します。サーバーの画面の右上でも切り替えられます。</span></span></label>
       </div>
       <div class="lbl">入退出の音とお知らせ</div>
       <div><label class="switch"><input type="checkbox" data-sndset ${soundOn() ? "checked" : ""}><span></span></label>
-        <div class="hint">だれかがサーバーに入ったとき・出たときに、「ピロン」と音を鳴らして、お知らせを出します（このソフトを開いているとき）。</div></div>
+        <div class="hint">誰かがサーバーに入ったとき・出たときに、「ピロン」と音を鳴らして、お知らせを出します（このソフトを開いているとき）。</div></div>
       <div class="lbl">「次にやること」の案内</div>
       <div><label class="switch"><input type="checkbox" data-nextshow ${st.hide_next_step ? "" : "checked"}><span></span></label>
         <div class="hint">ホーム画面の上に、いまやることを1つだけ大きく出します。OFFにすると隠れます。</div>
         <div class="row" style="margin-top:8px"><button class="btn sm" data-tour>はじめてガイドを、もう一度見る</button></div></div>
       <div class="lbl">サーバーのポート番号（部屋番号）</div>
       <div>
-        <label class="row" style="gap:8px;align-items:flex-start"><input type="radio" name="pmode" value="same" ${st.port_mode !== "separate" ? "checked" : ""}><span><b>ぜんぶ同じ番号にする（おすすめ）</b><span class="hint" style="display:block">新しく作るサーバーも、いつも <b>25565</b> になります。<b>同時に2つ動かさない</b>なら、これが一番かんたんです。友達に伝えるアドレスや、playit の設定を変えなくて済みます。</span></span></label>
+        <label class="row" style="gap:8px;align-items:flex-start"><input type="radio" name="pmode" value="same" ${st.port_mode !== "separate" ? "checked" : ""}><span><b>全部同じ番号にする（おすすめ）</b><span class="hint" style="display:block">新しく作るサーバーも、いつも <b>25565</b> になります。<b>同時に2つ動かさない</b>なら、これが一番かんたんです。友達に伝えるアドレスや、playit の設定を変えなくて済みます。</span></span></label>
         <label class="row" style="gap:8px;align-items:flex-start;margin-top:8px"><input type="radio" name="pmode" value="separate" ${st.port_mode === "separate" ? "checked" : ""}><span><b>サーバーごとに別の番号にする</b><span class="hint" style="display:block">25565、25566、25567…と増えていきます。<b>2つ以上を同時に動かしたい</b>ときに選びます。友達には「:25566」のように番号つきで伝える必要があります。</span></span></label>
         <div class="row" style="margin-top:10px"><button class="btn sm" data-pmapply>いまあるサーバーの番号も、この決め方にそろえる</button></div>
         <div class="hint">動いているサーバーは変えません（止めてからやり直してください）。番号が変わると、友達に伝えるアドレスと playit の「Local Port」も変える必要があります。</div>
@@ -2780,12 +2874,12 @@ function viewAppSettings(root) {
     <div class="panel" style="margin-top:18px"><h3>困ったとき</h3>
       <p class="small muted" style="max-width:76ch">うまく動かないときに、原因を調べてもらうための情報を、zipにまとめます。<b>鍵・PCのユーザー名・IPアドレスは消します。</b>サーバーごとの診断は、サーバー画面の右上の「困ったとき診断」からできます。</p>
       <div class="row"><button class="btn" data-bundle>診断情報をまとめる（ソフト全体）</button></div></div>
-    <div class="panel" style="margin-top:18px"><h3>CurseForge でもMODをさがす（任意）</h3>
-      <p class="small muted" style="max-width:76ch">ふだんは Modrinth からさがします。CurseForge のMODも使いたいときは、<b>自分で無料の「APIキー」を作って</b>ここに入れます。キーはこのPCの中だけに保存します。</p>
+    <div class="panel" style="margin-top:18px"><h3>CurseForge でもMODを探す（任意）</h3>
+      <p class="small muted" style="max-width:76ch">ふだんは Modrinth から探します。CurseForge のMODも使いたいときは、<b>自分で無料の「APIキー」を作って</b>ここに入れます。キーはこのPCの中だけに保存します。</p>
       <ol class="small" style="padding-left:1.4em"><li><button class="linkbtn" data-url="https://console.curseforge.com/">console.curseforge.com</button> を開いて、アカウントを作る（Googleなどでログインできます）</li>
         <li>「API Keys」を開いて、出てきたキーをコピーする</li><li>下の欄に貼って「保存」</li></ol>
       <div class="inline-field" style="max-width:620px"><input type="password" data-cfkey placeholder="${st.cf_enabled ? "設定ずみ（変えるときだけ入れる）" : "$2a$10$ から始まる長い文字"}" autocomplete="off"><button class="btn" data-cfsave>保存</button>${st.cf_enabled ? '<button class="btn ghost" data-cfdel>消す</button>' : ""}</div>
-      <p class="hint">${st.cf_enabled ? '<span class="badge ok">使えます</span> MODをさがす画面で「CurseForge」を選べます。' : "入れると、MODをさがす画面で「CurseForge」を選べるようになります。"}作者が許可していないMODは自動で入れられないので、そのときはサイトを開いて手で入れます。</p></div>
+      <p class="hint">${st.cf_enabled ? '<span class="badge ok">使えます</span> MODを探す画面で「CurseForge」を選べます。' : "入れると、MODを探す画面で「CurseForge」を選べるようになります。"}作者が許可していないMODは自動で入れられないので、そのときはサイトを開いて手で入れます。</p></div>
     <div class="panel" style="margin-top:18px"><h3>友達に配る用に書き出す</h3>
       <p class="small muted" style="max-width:76ch">このソフトを友達に渡すための zip を作ります。<b>設定・鍵（Webhook など）・ワールドは入りません</b>（data フォルダを除くため）。フォルダをそのまま渡すと、鍵が見えてしまうので、渡すときはこれを使ってください。</p>
       <div class="row"><button class="btn primary" data-dist>配布用の zip を作る</button></div><div data-distdone></div></div>
@@ -2850,7 +2944,7 @@ async function checkJoinedUpdates() {
   } catch (e) { /* 何もしない */ }
 }
 
-// ================================================================ はじまり
+// ================================================================ 始まり
 async function boot() {
   try {
     await refreshState();

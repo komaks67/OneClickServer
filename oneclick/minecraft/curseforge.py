@@ -28,7 +28,7 @@ class KeyMissing(Exception):
 
 
 # 入口のセキュリティ（Cloudflare）が、見慣れない名前の通信を断ることがあるため、
-# その場合だけ 普通のブラウザ風の名前に切りかえる（テストで通ったときに自動で切りかえる）
+# その場合だけ 普通のブラウザ風の名前に切り替える（テストで通ったときに自動で切り替える）
 _BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 _ua_override = {"on": False}
 
@@ -85,7 +85,7 @@ def check_key(key: str):
         if code in (401, 403):
             return False, (f"CurseForge に「このキーは使えません」と言われました（エラー {code}）。"
                            "console.curseforge.com の「API Keys」にある長いキー（$2a$10$ で始まる）を、"
-                           "もう一度ぜんぶコピーしてください。")
+                           "もう一度全部コピーしてください。")
         if code == 429:
             return False, "CurseForge への問い合わせが多すぎます（エラー 429）。少し待ってからもう一度ためしてください。"
         if code:

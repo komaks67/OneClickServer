@@ -1,6 +1,7 @@
 """画面（ブラウザ）とやりとりする小さなWebサーバー。このPCの中だけで動く。"""
 from __future__ import annotations
 
+import hmac
 import json
 import mimetypes
 import os
@@ -15,11 +16,11 @@ from . import api, net
 from .paths import CACHE_DIR, SERVERS_DIR
 
 MIME = {".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml",
-        ".png": "image/png", ".json": "application/json"}
+        ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json"}
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
-TOKEN = secrets.token_urlsafe(24)
 HOME_URL = ""  # 統合版のホームの住所(main.py が入れる)
+TOKEN = secrets.token_urlsafe(24)
 last_ping = 0.0
 MAX_UPLOAD = 1024 * 1024 * 1024  # 1GB（引っ越しファイルの zip だけ、もっと大きくてよい）
 MAX_UPLOAD_ZIP = 16 * 1024 * 1024 * 1024
@@ -56,6 +57,8 @@ class Handler(BaseHTTPRequestHandler):
                              "frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")   # ほかのサイトのページから、画像などとして読み込ませない
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
         self.send_header("Referrer-Policy", "no-referrer")
         if not cache:
             self.send_header("Cache-Control", "no-store")
@@ -87,7 +90,7 @@ class Handler(BaseHTTPRequestHandler):
             if ctype.startswith("text/") or ctype.endswith("javascript"):
                 ctype += "; charset=utf-8"
             with open(full, "rb") as f:
-                return self._send(200, f.read(), ctype, cache=ext in (".svg", ".png"))
+                return self._send(200, f.read(), ctype, cache=ext in (".svg", ".png", ".jpg"))
         return self._send(404, b"not found", "text/plain")
 
     def _icon(self):
@@ -97,9 +100,9 @@ class Handler(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}
         mods_dir = None
         sid = q.get("s") or ""
-        if sid and "/" not in sid and "\\" not in sid and sid not in (".", ".."):
+        if sid and "/" not in sid and "\\" not in sid and sid not in (".", "..") and "\x00" not in sid:
             d = os.path.join(SERVERS_DIR, sid, "mods")
-            if os.path.isdir(d):
+            if os.path.isdir(d) and os.path.realpath(d).startswith(os.path.realpath(SERVERS_DIR) + os.sep):
                 mods_dir = d
         try:
             data = items_mod.icon_png(q.get("id", ""), q.get("mc", ""), mods_dir)
@@ -112,10 +115,16 @@ class Handler(BaseHTTPRequestHandler):
     # ---------- POST（機能を呼ぶ） ----------
     def do_POST(self):
         global last_ping
-        if not self._host_ok() or not self._origin_ok() or self.headers.get("X-Token") != TOKEN:
+        if not self._host_ok() or not self._origin_ok() or \
+                not hmac.compare_digest((self.headers.get("X-Token") or "").encode(), TOKEN.encode()):
             return self._send(403, b"forbidden", "text/plain")
         path = self.path.split("?", 1)[0]
-        length = int(self.headers.get("Content-Length") or 0)
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if length < 0:
+            return self._json(400, {"error": "おかしなデータです"})
         if path == "/api/upload":
             name = os.path.basename(self.headers.get("X-Filename", "upload.bin"))
             from urllib.parse import unquote
@@ -168,7 +177,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(500, {"error": f"エラーが起きました: {e}"})
 
 
+def _clean_uploads(max_age=2 * 24 * 3600):
+    """前に選んだファイルの残り（2日より古いもの）を消す。ディスクがいっぱいにならないように。"""
+    d = os.path.join(CACHE_DIR, "uploads")
+    try:
+        for fn in os.listdir(d):
+            f = os.path.join(d, fn)
+            if os.path.isfile(f) and time.time() - os.path.getmtime(f) > max_age:
+                os.remove(f)
+    except OSError:
+        pass
+
+
 def start(port=0) -> ThreadingHTTPServer:
+    _clean_uploads()
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     httpd.daemon_threads = True
     threading.Thread(target=httpd.serve_forever, daemon=True).start()

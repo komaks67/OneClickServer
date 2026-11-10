@@ -30,7 +30,7 @@ def clean_schedule(rules) -> list[dict]:
         if not start and not stop:
             continue
         if not days:
-            raise ValueError("曜日を1つ以上えらんでください")
+            raise ValueError("曜日を1つ以上選んでください")
         norm = lambda t: f"{int(t.split(':')[0]):02d}:{t.split(':')[1]}" if t else ""  # noqa: E731
         out.append({"days": days, "start": norm(start), "stop": norm(stop)})
     return out

@@ -2,11 +2,11 @@
 
 1. 先にワールドをバックアップ
 2. 新しいバージョンのサーバー本体・土台（Fabric など）を入れる
-3. MOD / プラグインを、新しいバージョン用に入れかえる（ないものはOFFにする）
-4. 失敗したら、元のファイルにもどす
+3. MOD / プラグインを、新しいバージョン用に入れ替える（ないものはOFFにする）
+4. 失敗したら、元のファイルに戻す
 
 マイクラは「新しいバージョンで開いたワールドは、古いバージョンでは開けない」ので、
-古いバージョンにもどす（ダウングレード）はできないようにしている。
+古いバージョンに戻す（ダウングレード）はできないようにしている。
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ import time
 from . import javamgr, loaders, modrinth, net, versions
 from .modrinth import ModList
 
-# 新しいサーバー本体を入れる前によけておくファイル（失敗したらもどす）
+# 新しいサーバー本体を入れる前によけておくファイル（失敗したら戻す）
 KEEP_FOR_ROLLBACK = ["*.jar", "libraries", "run.bat", "run.sh", "user_jvm_args.txt", "mcmh.json", "mods.json"]
 
 
@@ -36,7 +36,7 @@ def plan(prof, mc: str) -> dict:
     cur = prof.get("mc") or ""
     loader = prof.get("loader")
     if versions.parse(mc) < versions.parse(cur):
-        return {"ok": False, "reason": f"マイクラ {cur} のワールドを、古い {mc} で開くことはできません（ワールドがこわれます）。"}
+        return {"ok": False, "reason": f"マイクラ {cur} のワールドを、古い {mc} で開くことはできません（ワールドが壊れます）。"}
     lv = loaders.loader_version(loader, mc) if loader != "vanilla" else "-"
     if not lv:
         return {"ok": False, "reason": f"{loaders.LOADER_LABEL.get(loader, loader)} の マイクラ {mc} 用がまだありません。"}
@@ -69,7 +69,7 @@ def run(prof, mc: str, make_backup, log=print) -> dict:
     if not pl["ok"]:
         raise RuntimeError(pl["reason"])
     if os.path.isdir(prof.world_dir()):
-        log("ワールドをバックアップしています（失敗したらこれでもどせます）…")
+        log("ワールドをバックアップしています（失敗したらこれで戻せます）…")
         make_backup(prof, "before-version")
     # 古いサーバー本体をよけておく
     hold = os.path.join(prof.dir, "_mcmh_old_version")
@@ -95,7 +95,7 @@ def run(prof, mc: str, make_backup, log=print) -> dict:
                           "java_major": need, "upgraded": time.strftime("%Y-%m-%d %H:%M"),
                           "upgraded_from": old_data.get("mc")})
         prof.save()
-        # MOD を入れかえる
+        # MOD を入れ替える
         ml = ModList(prof.dir)
         changed, disabled = [], []
         by_path = {m["path"]: m for m in ml.items}
@@ -103,7 +103,7 @@ def run(prof, mc: str, make_backup, log=print) -> dict:
             rec = by_path.get(it["path"])
             if not rec or it["same"]:
                 continue
-            log(f"入れかえ: {it['title']} {it['from']} → {it['to']}")
+            log(f"入れ替え: {it['title']} {it['from']} → {it['to']}")
             modrinth.apply_update(ml, rec, modrinth.version(it["version_id"]), log)
             changed.append(it["title"])
         for it in pl["mods_ng"]:
@@ -115,7 +115,7 @@ def run(prof, mc: str, make_backup, log=print) -> dict:
         log("バージョンを変えました！")
         return {"mc": mc, "from": old_data.get("mc"), "changed": changed, "disabled": disabled, "manual": pl["manual"]}
     except Exception:
-        log("失敗したので、元のサーバーにもどしています…")
+        log("失敗したので、元のサーバーに戻しています…")
         for name in os.listdir(hold):
             dst = os.path.join(prof.dir, name)
             if os.path.isdir(dst):

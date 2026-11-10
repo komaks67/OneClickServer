@@ -47,20 +47,34 @@ class Gateway:
         s.listen(64)
         self.sock = s
         self.alive = True
-        threading.Thread(target=self._accept, daemon=True).start()
+        threading.Thread(target=self._accept, args=(s,), daemon=True).start()
+        # IPv6 でも受け付ける（v6プラスなどの回線で、友達が IPv6 アドレスで直接つなげるように）。使えないPCでは何もしない
+        self.sock6 = None
+        try:
+            s6 = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+            s6.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+            if os.name != "nt":
+                s6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s6.bind(("::", self.public_port))
+            s6.listen(64)
+            self.sock6 = s6
+            threading.Thread(target=self._accept, args=(s6,), daemon=True).start()
+        except (OSError, AttributeError):
+            self.sock6 = None
 
     def close(self):
         self.alive = False
-        if self.sock:
-            try:
-                self.sock.close()
-            except OSError:
-                pass
+        for s in (self.sock, getattr(self, "sock6", None)):
+            if s:
+                try:
+                    s.close()
+                except OSError:
+                    pass
 
-    def _accept(self):
+    def _accept(self, sock):
         while self.alive:
             try:
-                c, addr = self.sock.accept()
+                c, addr = sock.accept()
             except OSError:
                 return
             ip = addr[0]
