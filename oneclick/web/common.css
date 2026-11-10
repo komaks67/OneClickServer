@@ -104,3 +104,15 @@ aside a.nav:hover{background:rgba(255,255,255,.07)}
 .pill.upd{background:#d98e04;color:#fff;margin-left:6px}
 .srv .head{flex-wrap:wrap}
 .srv .head > div:nth-child(2){flex:1 1 150px !important;min-width:150px}
+
+.bstep{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.bstep h3{font-size:14px;margin:0 0 8px}
+.bstep details{margin:4px 0 8px}
+.bstep summary{cursor:pointer}
+.bstep ol{padding-left:1.4em;line-height:1.9}
+.bstep label{display:block;margin-top:8px}
+.bstep input[type=text],.bstep input[type=password]{width:100%;box-sizing:border-box}
+.bbadge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;border:1px solid var(--line);margin-right:6px}
+.bbadge.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.bsrv{display:flex;align-items:center;gap:10px;padding:6px 0;flex-wrap:wrap}
+.bsrv .nm{flex:1;min-width:140px}

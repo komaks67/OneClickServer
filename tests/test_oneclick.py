@@ -702,5 +702,78 @@ class DiagnoseAndAdmin(unittest.TestCase):
                 self.assertTrue(f.get("help"), f"{cls.KEY}.{f['key']} に説明がありません")
 
 
+class DiscordHubTests(unittest.TestCase):
+    """Discord のボット(4ゲーム共通)。本物の Discord には つながず、中の判断だけを調べる。"""
+
+    def setUp(self):
+        from oneclick import discordbot, discordhub
+        self.hub, self.bot = discordhub, discordbot
+        self.posts = []
+        self._orig = (discordhub.post, discordhub._bot, discordhub.restart, discordhub._save_cfg, discordhub.cfg)
+        discordhub.post = lambda sid, title, desc="", kind="info", fields=None: self.posts.append((sid, title, kind))
+        self.store = {}
+        discordhub.cfg = lambda: self.store
+        discordhub._save_cfg = lambda c: self.store.update(c) if c.get("panels") or True else None
+        discordhub.restart = lambda: None
+
+    def tearDown(self):
+        h = self.hub
+        h.post, h._bot, h.restart, h._save_cfg, h.cfg = self._orig
+        h._last.clear()
+
+    def test_steam_events_become_cards(self):
+        self.hub._bot = object()
+        self.hub.steam_event("ark_asa", "start", "サーバーを起動しました。")
+        self.hub.steam_event("ark_asa", "start", "テスト通知です。このメッセージが見えれば成功です。")
+        self.hub.steam_event("ark_asa", "stop", "x")
+        self.hub.steam_event("ark_asa", "crash", "落ちました")
+        self.assertEqual([(p[1], p[2]) for p in self.posts],
+                         [("⏳ 起動しています", "wait"), ("⚪ 止まりました", "stop"), ("🔴 サーバーが落ちました", "bad")])
+
+    def test_no_card_without_bot(self):
+        self.hub._bot = None
+        self.hub.steam_event("palworld", "start", "x")
+        self.assertEqual(self.posts, [])
+
+    def test_bot_set_checks_input(self):
+        with self.assertRaises(self.hub.HubError):
+            self.hub.bot_set(token="短い")
+        with self.assertRaises(self.hub.HubError):
+            self.hub.bot_set(channel="abc")
+        with self.assertRaises(self.hub.HubError):
+            self.hub.bot_set(users="!!!")
+
+    def test_steam_start_stop_text(self):
+        class Fake:
+            NAME = "テスト"
+            def __init__(self): self.on = False
+            def start(self, auto=False):
+                self.on = True
+                return {"ok": True, "message": "起動しました。"}
+            def stop(self):
+                return {"ok": self.on, "message": "動いていません。"}
+            def playit_running(self): return True
+            def running(self): return self.on
+            def display_name(self): return "テスト"
+        f = Fake()
+        orig = steamgames.get
+        steamgames.get = lambda key: f
+        try:
+            self.assertIn("起動を始めました", self.hub._steam_start("terraria"))
+            self.assertIn("playit は、もう動いています", self.hub._steam_start("terraria"))
+            self.assertIn("停止を始めました", self.hub._steam_stop("terraria"))
+            f.on = False
+            self.assertIn("動いていません", self.hub._steam_stop("terraria"))
+        finally:
+            steamgames.get = orig
+
+    def test_card_and_invite(self):
+        c = self.bot.card("題", "本文", "ok", [("a", "b", True)], footer="f")
+        self.assertEqual(c["color"], self.bot.COLORS["ok"])
+        self.assertEqual(c["fields"][0]["name"], "a")
+        self.assertEqual(self.bot.server_key("mc:x"), self.bot.server_key("mc:x"))
+        self.assertNotEqual(self.bot.server_key("mc:x"), self.bot.server_key("ark_asa"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -16,7 +16,7 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-from . import appinfo, migrate, paths, registry, selfupdate, steamgames
+from . import appinfo, discordhub, migrate, paths, registry, selfupdate, steamgames
 from .runtime import RES_DIR
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
@@ -187,7 +187,42 @@ class Shell:
         threading.Thread(target=later, daemon=True).start()
         return {"ok": True}
 
-    HOME_ACTIONS = {"get_home", "create_game", "get_theme", "set_theme", "migration_scan", "migration_run", "migration_undo",
+    # ---------- Discord のボット(4ゲーム共通) ----------
+    @staticmethod
+    def _hub(fn, *a, **kw):
+        try:
+            return fn(*a, **kw)
+        except discordhub.HubError as e:
+            raise UserError(str(e)) from None
+
+    def bot_get(self):
+        return self._hub(discordhub.bot_get)
+
+    def bot_set(self, token=None, channel=None, users=None):
+        return self._hub(discordhub.bot_set, token, channel, users)
+
+    def bot_invite(self):
+        return self._hub(discordhub.bot_invite)
+
+    def bot_channels(self):
+        return self._hub(discordhub.bot_channels)
+
+    def bot_test(self):
+        return self._hub(discordhub.bot_test)
+
+    def bot_panel(self, sid):
+        return self._hub(discordhub.bot_panel, str(sid))
+
+    def open_url(self, url):
+        """Discord の開発者ページ・招待リンクだけ、ブラウザで開く。"""
+        import webbrowser
+        url = str(url)
+        if not (url.startswith("https://discord.com/developers/") or url.startswith("https://discord.com/oauth2/authorize?")):
+            raise UserError("開けるのは、Discord のページだけです。")
+        webbrowser.open(url)
+        return {"ok": True}
+
+    HOME_ACTIONS = {"bot_get", "bot_set", "bot_invite", "bot_channels", "bot_test", "bot_panel", "open_url", "get_home", "create_game", "get_theme", "set_theme", "migration_scan", "migration_run", "migration_undo",
                     "migration_dismiss", "update_check", "update_apply"}
 
 

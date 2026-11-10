@@ -35,6 +35,14 @@
   <div id="cards" class="grid"></div>
   <div id="empty" class="empty" hidden>まだサーバーがありません。右上の「＋ 新しく作る」から、ゲームを選んでください。</div>
 
+  <h2>Discord から操作する(ボット)
+    <button class="btn" id="botToggle">設定を開く</button>
+  </h2>
+  <div class="card" id="botCard" hidden>
+    <p class="small">Discord のチャンネルに<b>「▶ 起動」「■ 停止」「📊 状態」のボタン</b>を置いて、押すだけでサーバーを操作できます。<b>マイクラ・ARK・Palworld・Terraria のどれでも使え、ボットは1つだけ</b>で大丈夫です。起動・停止・落ちたときのお知らせは、<b>カード</b>で、パネルのスレッドに出ます。<b>このソフトとPCが動いている間だけ</b>使えます。</p>
+    <div id="botBody"></div>
+  </div>
+
   <h2>データの引き継ぎ</h2>
   <div class="card" id="migCard">
     <p class="small">統合前の <b>OneClickServerMC</b> や <b>OneClickServerARK</b> で作ったサーバー・ワールド・設定を、ここに引き継ぎます。同じドライブなら一瞬で終わります(移動)。引き継ぐ前に、設定のバックアップを取り、いつでも「元に戻す」ができます。</p>
@@ -60,5 +68,6 @@
 <footer class="legal">OneClickServer は<b>非公式</b>の個人制作ツールで、Mojang・Microsoft・Studio Wildcard・Pocketpair・Re-Logic・Valve・playit.gg とは関係ありません。各ゲームの名前・ロゴは、それぞれの権利者のものです。<a href="/static/notices.html" target="_blank">ライセンスと注意事項</a></footer>
 <div id="toast"></div>
 <script src="/static/home.js"></script>
+<script src="/static/discord.js"></script>
 </body>
 </html>

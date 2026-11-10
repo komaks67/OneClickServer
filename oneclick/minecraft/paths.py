@@ -58,7 +58,7 @@ def _foreign_profile(path: str) -> bool:
 # ---------- 鍵（Webhook・APIキー・トークン）を、このPCのこのユーザーでしか読めない形で保存する ----------
 # Windows の DPAPI を使う。data フォルダを他の人や他のPCにコピーしても、鍵は読めない（空になる）。
 SECRET_KEYS = ("discord_webhook", "cf_key")
-SECRET_NESTED = (("duckdns", "token"),)
+SECRET_NESTED = (("duckdns", "token"), ("discord_bot", "token"))
 PREFIX = "dpapi:"
 
 

@@ -8,6 +8,12 @@
 - 配布: `OneClickServer_win.zip` と `.sha256` を GitHub Releases に置く。ソフトが更新を確認する先は `oneclick/appinfo.py` の `RELEASES_REPO`(`komaks67/OneClickServer`。このリポジトリ自身)
 - 公式アイコンを使うときは `oneclick/web/icons/README.txt` を読むこと
 
+## Discord から操作する(3.1.0〜)
+- ホーム画面の「Discord から操作する(ボット)」で、5ステップの案内どおりに設定する(ボットは1つ。4ゲーム共通)
+- チャンネルに「▶ 起動 / ■ 停止 / 📊 状態」のパネルを、サーバーごとに置ける。お知らせは、パネルのスレッドに「カード」で出る
+- 設定は `data/minecraft/settings.json` の `discord_bot`(トークンは Windows の DPAPI で暗号化)
+- コードは `oneclick/discordbot.py`(通信・カード)と `oneclick/discordhub.py`(4ゲームのつなぎ口)、画面は `oneclick/web/discord.js`
+
 ## 開発
 ```
 python -m unittest discover -s tests -v   # 自動テスト

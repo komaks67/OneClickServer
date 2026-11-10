@@ -90,6 +90,11 @@ def main():
     mc_protocol.register()
     mc_api.startup()
     mc_httpd = mc_web.start(0)
+    try:
+        from oneclick import discordhub
+        discordhub.restart()          # Discord のボット(ホーム画面で設定した人だけ)
+    except Exception as e:  # noqa: BLE001
+        print(f"Discord のボットを始められませんでした: {e}", flush=True)
 
     sh = shell_mod.Shell()
     sh.mc_port = mc_httpd.server_address[1]

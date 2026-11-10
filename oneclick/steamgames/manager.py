@@ -693,6 +693,11 @@ class BaseManager:
 
     # ---------- Discord 通知 ----------
     def notify(self, event, text):
+        try:
+            from .. import discordhub
+            discordhub.steam_event(self.KEY, event, text)       # Discord のボット(ホーム画面で設定)
+        except Exception:  # noqa: BLE001
+            pass
         url = self.settings.get("discord_webhook", "").strip()
         if not url or event not in self.settings.get("discord_events", []):
             return

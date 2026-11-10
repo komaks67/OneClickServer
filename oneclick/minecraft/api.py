@@ -158,6 +158,11 @@ def _runner(id) -> server.Runner:
                 _state_notify(id, state, r)
             except Exception:  # noqa: BLE001
                 traceback.print_exc()
+            try:
+                from .. import discordhub
+                discordhub.mc_state_changed(id, state, r)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
             if state == "stopped" and r and r.last_exit and r.last_exit.get("crashed"):
                 def analyze():
                     try:
@@ -168,6 +173,8 @@ def _runner(id) -> server.Runner:
                         res["gave_up"] = bool(r.last_exit.get("gave_up"))
                         _memory_after_crash(id, res)
                         crash_info[id] = res
+                        from .. import discordhub
+                        discordhub.mc_crash(id, res)
                     except Exception:  # noqa: BLE001
                         traceback.print_exc()
                 threading.Thread(target=analyze, daemon=True).start()
