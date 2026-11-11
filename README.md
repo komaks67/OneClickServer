@@ -14,6 +14,9 @@
 - 設定は `data/minecraft/settings.json` の `discord_bot`(トークンは Windows の DPAPI で暗号化)
 - コードは `oneclick/discordbot.py`(通信・カード)と `oneclick/discordhub.py`(4ゲームのつなぎ口)、画面は `oneclick/web/discord.js`
 
+## 3.3.1 の変更
+- Discord の「PCの見張り」で、ディスク・CPU・メモリの警告を、**項目ごとにON/OFF**できるように(メモリの警告だけ止める、など)
+
 ## 3.3.0 の変更
 - **新しい見た目(B案)**: ホーム・ゲーム画面・マイクラ画面を、明るい/ブラックの2種類のミニマルなデザインに。ゲームのアイコンは文字なし
 - 「ホームへ戻る」を、右下に浮かせず、メニューの一番上に入れた(ほかの表示と被らない)
