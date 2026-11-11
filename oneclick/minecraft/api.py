@@ -15,7 +15,7 @@ import zipfile
 import webbrowser
 
 from . import (extras, items as items_mod, regions, presets, admin, boottest, client_install, compat, conflicts, gamerules_meta, gateway, loaders, mcping, metrics,
-               autostart, curseforge, ddns, diagnose, features, support, updater, mod_ja, protocol, watch, modrinth, upgrade, mrpack, msmp, net, network, optimize, packupdate, pregen, props_meta, versions,
+               autostart, connectdiag, curseforge, ddns, diagnose, features, javareq, support, updater, mod_ja, protocol, watch, modrinth, upgrade, mrpack, msmp, net, network, optimize, packupdate, pregen, props_meta, versions,
                server, translate)
 from . import paths as _paths
 from .modrinth import ModList
@@ -1271,6 +1271,12 @@ def mods_install(server, ids):
                 pass
         r, e = install_many(p, ids, job.write)
         out = _result_dict(r, e)
+        try:
+            jn = javareq.mods_note(p)
+            if jn:
+                out["warnings"] = list(out.get("warnings") or []) + [jn]
+        except Exception:  # noqa: BLE001
+            pass
         out["running"] = bool(runners.get(server) and runners[server].running)
         return out
     return start_job(f"{word}を {len(ids)} 個入れています", work)
@@ -2532,6 +2538,12 @@ def joined_play(key):
 def _precheck(key, job) -> dict:
     """参加前チェック：入っているMODが、サーバーのパックと同じかを調べて、違えば直す。"""
     rec = settings.get("joined", {}).get(key) or {}
+    try:    # MODが新しい Java を要るのに、用意されていなければ、自動で用意する(起動直後に止まるのを防ぐ)
+        pj = client_install.ensure_play_java(rec["mc_dir"], key, rec.get("game_dir") or "", rec.get("mc") or "", job.write)
+        if pj["status"] == "fixed":
+            job.write(f"✅ Java {pj['need']} を用意しました")
+    except Exception as e:  # noqa: BLE001  用意できなくても、ほかの確認は続ける
+        job.write(f"（Java の確認はできませんでした: {e}）")
     job.write("MODがサーバーと同じか、調べています…")
     info = path = None
     try:
@@ -3096,6 +3108,25 @@ def _join_flush(id):
     _notify(id, "join", "👥 入った・出た" + (f"({n}件)" if n > 1 else ""), "\n".join(b["lines"][-15:]) + "\n" + _online_text(id))
 
 
+_EASY_HINT_RE = re.compile(r"not white-?listed|Outdated (?:client|server)|Mismatched mod channel|Incompatible FML|"
+                           r"Server is missing|Client is missing|Failed to verify username|Invalid session|"
+                           r"floating too long|Connection throttled", re.I)
+_easy_hint_seen: dict = {}
+
+
+def _easy_hint(id, line):
+    """入れなかった理由の行を見つけたら、やさしい日本語の説明を1回だけコンソールに出す(同じ説明は5分に1回まで)。"""
+    try:
+        for it in conflicts.analyze_text(line):
+            key = (id, it["title"])
+            if time.time() - _easy_hint_seen.get(key, 0) < 300:
+                continue
+            _easy_hint_seen[key] = time.time()
+            consoles.setdefault(id, Console()).add(f"💬 {it['title']}：{it['detail']}" + (f"　→ {it['fix']}" if it.get("fix") else ""))
+    except Exception:  # noqa: BLE001  説明が出せなくても、サーバーの動きには関係しない
+        pass
+
+
 def _watch_line(id, line):
     if "logged in with entity id" in line:
         m = watch.LOGIN_RE.search(line)
@@ -3119,6 +3150,8 @@ def _watch_line(id, line):
             _play(id).leave(m.group(1))
             _join_event(id, m.group(1), False)
         return False
+    if _EASY_HINT_RE.search(line):      # 友達が入れなかった理由を、コンソールにやさしい日本語で足す
+        _easy_hint(id, line)
     ev = watch.parse_reject(line)
     if ev:
         gw = gateways.get(id)
@@ -3369,6 +3402,31 @@ def net_diagnose(id):
             d["ipv4"] = str(d["ipv4"])
         return d
     return start_job("ネットワークを調べています", work)
+
+
+def connect_diagnose(id):
+    """「友達が入れないとき」の診断：原因になりやすいところを順に調べて、直し方を出す。"""
+    p = _prof(id)
+    port = int(p.props().get("server-port", "25565") or 25565)
+
+    def work(job):
+        r = runners.get(id)
+        con = consoles.get(id)
+        ctx = {"running": bool(r and r.running), "port": port,
+               "playit_alive": bool(playit_proc and playit_proc.poll() is None),
+               "port_mismatch": _port_mismatch(p.get("public_address") or "", port),
+               "console_lines": con.since(0)[0] if con else None}
+        cache: dict = {}
+
+        def diag():
+            if "d" not in cache:
+                cache["d"] = network.diagnose(port, lambda *_: None)
+            return cache["d"]
+        deps = {"ping": mcping.ping, "reach_test": network.reach_test,
+                "global_ip": lambda: diag().get("ipv4"), "shared_v4": lambda: diag().get("shared_v4")}
+        job.write("サーバーの様子を調べています…")
+        return connectdiag.run(p, ctx, deps)
+    return start_job("入れない原因を調べています", work)
 
 
 def upnp_open(id):
@@ -3930,6 +3988,12 @@ def preflight(id):
         jp = None
     items.append(F("ok", f"Java {need}: 用意ずみ") if jp else
                  F("info", f"Java {need} は、起動のときに自動で用意します", "初回だけ数分かかります（インターネットが必要です）。"))
+    try:    # MODが、もっと新しい Java を要るとき(遊ぶ人のPCで、起動直後に止まる原因)
+        ji = javareq.issue(p)
+        if ji:
+            items.append(F("warn", ji["title"], ji["detail"], ji["fix"]))
+    except Exception:  # noqa: BLE001
+        pass
     # メモリ
     adv = memory_advice(id)
     items.append(features.memory_item(int(p.get("memory_mb", 4096) or 4096), adv["total"], adv["need"], adv["max_safe"]))

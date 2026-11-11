@@ -10,7 +10,7 @@ import threading
 import time
 import zipfile
 
-from . import javamgr, loaders, net, versions
+from . import javamgr, javareq, loaders, net, versions
 from .javamgr import NO_WINDOW
 from .paths import SERVERS_DIR, load_json, safe_name, save_json
 
@@ -294,6 +294,10 @@ class Runner:
             self._restart_times.clear()     # 人が起動したら、再起動の回数は数えなおす
         self._auto_start = False
         need = self.prof.get("java_major") or loaders.guess_java(self.prof.get("mc", ""))
+        newer = javareq.server_java(self.prof, need)         # MOD がもっと新しい Java を要るときは、それで動かす
+        if newer > need:
+            self.on_line(f"MODが Java {newer} を必要としているので、Java {newer} で起動します。")
+            need = newer
         java = javamgr.ensure_java(need, self.on_line)
         for f in self.before_start:
             f(self)

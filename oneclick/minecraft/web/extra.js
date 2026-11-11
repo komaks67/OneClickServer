@@ -641,3 +641,31 @@ function viewHowto(root) {
     $("[data-x]", m.el).onclick = m.close;
   }));
 }
+
+
+// ================ 友達が入れないとき（診断） ================
+async function openConnectDiag(s) {
+  const m = modal(`<h2>友達が入れないとき</h2><div data-body><div class="empty">調べています…（外からのテストもするので、10秒ほどかかります）</div></div>
+    <div class="modal-foot"><button class="btn" data-again>もう一度調べる</button><button class="btn primary" data-close>閉じる</button></div>`, { wide: true });
+  $("[data-close]", m.el).onclick = () => m.close();
+  $("[data-again]", m.el).onclick = () => { m.close(); openConnectDiag(s); };
+  const body = $("[data-body]", m.el);
+  let r;
+  try { r = await runJob(api("connect_diagnose", { id: s.id }), "入れない原因を調べています"); }
+  catch (e) { if (!e.shown) fail(e); body.innerHTML = `<div class="empty">${esc(e.message || "調べられませんでした")}</div>`; return; }
+  const ic = { ok: "✅", info: "ℹ️", warn: "⚠️", error: "⛔" };
+  const cls = r.errors ? "error" : r.warnings ? "warn" : "ok";
+  body.innerHTML = `<div class="note ${cls}" style="margin:0 0 10px"><b>${esc(r.headline)}</b>${r.errors ? "上から順に、直してみてください。" : ""}</div>
+    <div class="stack" style="gap:8px">${r.items.map((i, n) => `<div class="small"><span aria-hidden="true">${ic[i.level] || "・"}</span> <b>${esc(i.title)}</b>${i.detail ? `<div class="muted" style="margin-left:1.6em">${esc(i.detail)}</div>` : ""}${i.fix ? `<div style="margin-left:1.6em">→ ${esc(i.fix)}</div>` : ""}${i.action ? `<div style="margin-left:1.6em;margin-top:4px"><button class="btn sm primary" data-cact="${n}">${esc(i.action.label || "直す")}</button></div>` : ""}</div>`).join("")}</div>`;
+  $$("[data-cact]", body).forEach((b) => {
+    b.onclick = async () => {
+      const a = r.items[Number(b.dataset.cact)].action;
+      if (a.type === "tab") { m.close(); S.tab = a.tab; viewServer($("#main")); return; }
+      if (a.type === "firewall") {
+        b.disabled = true;
+        try { await api("firewall", { id: s.id }); toast("ファイアウォールの許可を登録しました。もう一度調べてみてください"); } catch (e) { fail(e); }
+        b.disabled = false;
+      }
+    };
+  });
+}

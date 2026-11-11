@@ -299,6 +299,150 @@ class SysmonTests(unittest.TestCase):
         self.assertTrue(m is None or 0 <= m <= 100)
 
 
+class JavaReqTests(unittest.TestCase):
+    """MODが要る Java を調べる / 遊ぶ人の Java を自動で用意する / 入れない診断。"""
+
+    @staticmethod
+    def _jar(path, classes=None, fabric_java=None):
+        with zipfile.ZipFile(path, "w") as z:
+            for name, major in (classes or {}).items():
+                z.writestr(name, b"\xca\xfe\xba\xbe\x00\x00" + major.to_bytes(2, "big") + b"\x00" * 8)
+            if fabric_java:
+                z.writestr("fabric.mod.json", json.dumps({"id": "x", "depends": {"java": fabric_java}}))
+
+    def setUp(self):
+        from oneclick.minecraft import javareq
+        self.jr = javareq
+        self.d = tempfile.mkdtemp(dir=TMP)
+
+    def test_reads_class_version_and_ignores_multirelease(self):
+        a = os.path.join(self.d, "a.jar")
+        self._jar(a, {"a/A.class": 65, "META-INF/versions/21/B.class": 69})   # 65=Java21。META-INF の下は数えない
+        self.assertEqual(self.jr.jar_need(a), 21)
+        old = os.path.join(self.d, "old.jar")
+        self._jar(old, {"o/O.class": 52})
+        self.assertEqual(self.jr.jar_need(old), 8)
+        self.assertIsNone(self.jr.jar_need(os.path.join(self.d, "nothing.jar")))
+
+    def test_fabric_depends_java(self):
+        f = os.path.join(self.d, "f.jar")
+        self._jar(f, {"f/F.class": 61}, fabric_java=">=21")
+        self.assertEqual(self.jr.jar_need(f), 21)
+
+    def test_summary_flags_mods_newer_than_standard(self):
+        self._jar(os.path.join(self.d, "new.jar"), {"n/N.class": 65})
+        self._jar(os.path.join(self.d, "ok.jar"), {"o/O.class": 61})
+        s = self.jr.summarize(self.d, "1.20.1")            # 1.20.1 の標準は Java 17
+        self.assertEqual((s["base"], s["need"]), (17, 21))
+        self.assertEqual([m["file"] for m in s["high"]], ["new.jar"])
+        s2 = self.jr.summarize(self.d, "1.21.1")           # 1.21.1 の標準は Java 21 → 問題なし
+        self.assertEqual(s2["high"], [])
+
+    def test_server_java_goes_up_only_when_needed(self):
+        class P:
+            def __init__(self, d, mc="1.20.1", loader="fabric"):
+                self.d, self.mc, self.loader = d, mc, loader
+                self.mods_dir = d
+
+            def get(self, k, default=None):
+                return {"mc": self.mc, "loader": self.loader, "java_major": 17}.get(k, default)
+        self._jar(os.path.join(self.d, "new.jar"), {"n/N.class": 65})
+        self.assertEqual(self.jr.server_java(P(self.d)), 21)
+        self.assertEqual(self.jr.server_java(P(self.d, loader="vanilla")), 17)
+        empty = tempfile.mkdtemp(dir=TMP)
+        self.assertEqual(self.jr.server_java(P(empty)), 17)
+
+    def test_launcher_profile_gets_java_only_when_given(self):
+        from oneclick.minecraft import client_install as ci
+        mc = tempfile.mkdtemp(dir=TMP)
+        from oneclick.minecraft import paths as mcp
+        exe_dir = os.path.join(mcp.JAVA_DIR, "21", "jdk", "bin")
+        os.makedirs(exe_dir, exist_ok=True)
+        exe = os.path.join(exe_dir, "java.exe")
+        open(exe, "w").close()
+        ci.add_launcher_profile(mc, "k", "n", "v", mc, 4, exe)
+        pj = json.load(open(os.path.join(mc, "launcher_profiles.json"), encoding="utf-8"))
+        self.assertEqual(pj["profiles"]["k"]["javaDir"], exe)                      # javaw が無ければ java
+        ci.add_launcher_profile(mc, "k", "n", "v", mc, 4, None)                    # 要らなくなったら、ここで入れたものだけ外す
+        pj = json.load(open(os.path.join(mc, "launcher_profiles.json"), encoding="utf-8"))
+        self.assertNotIn("javaDir", pj["profiles"]["k"])
+        pj["profiles"]["k"]["javaDir"] = r"C:\mine\javaw.exe"                       # 自分で決めた Java は消さない
+        json.dump(pj, open(os.path.join(mc, "launcher_profiles.json"), "w", encoding="utf-8"))
+        ci.add_launcher_profile(mc, "k", "n", "v", mc, 4, None)
+        pj = json.load(open(os.path.join(mc, "launcher_profiles.json"), encoding="utf-8"))
+        self.assertEqual(pj["profiles"]["k"]["javaDir"], r"C:\mine\javaw.exe")
+
+    def test_ensure_play_java_installs_when_missing(self):
+        from oneclick.minecraft import client_install as ci, javamgr
+        mc = tempfile.mkdtemp(dir=TMP)
+        game = os.path.join(mc, "g")
+        os.makedirs(os.path.join(game, "mods"))
+        self._jar(os.path.join(game, "mods", "new.jar"), {"n/N.class": 65})
+        ci.add_launcher_profile(mc, "k", "n", "v", game, 4)
+        from oneclick.minecraft import paths as mcp
+        fake = os.path.join(mcp.JAVA_DIR, "21", "fake", "bin")
+        os.makedirs(fake, exist_ok=True)
+        exe = os.path.join(fake, "java.exe")
+        open(exe, "w").close()
+        calls = []
+        orig = javamgr.ensure_java
+        javamgr.ensure_java = lambda need, log=print: (calls.append(need), exe)[1]
+        try:
+            r = ci.ensure_play_java(mc, "k", game, "1.20.1", lambda *_: None)
+        finally:
+            javamgr.ensure_java = orig
+        self.assertEqual((r["status"], r["need"], calls), ("fixed", 21, [21]))
+        pj = json.load(open(os.path.join(mc, "launcher_profiles.json"), encoding="utf-8"))
+        self.assertEqual(pj["profiles"]["k"]["javaDir"], exe)
+
+    def test_diagnose_finds_closed_port_and_stopped_server(self):
+        from oneclick.minecraft import connectdiag
+
+        class P:
+            dir = tempfile.mkdtemp(dir=TMP)
+            mods_dir = os.path.join(dir, "mods")
+
+            def __init__(self, addr="", wl="false"):
+                self.addr, self.wl = addr, wl
+
+            def get(self, k, default=None):
+                return {"public_address": self.addr, "mc": "1.20.1", "loader": "fabric"}.get(k, default)
+
+            def props(self):
+                return {"white-list": self.wl}
+        stopped = connectdiag.run(P(), {"running": False, "port": 25565}, {})
+        self.assertEqual(stopped["items"][0]["title"], "サーバーが動いていません")
+        deps = {"ping": lambda a: {"version": "1.20.1", "online": 1, "max": 20},
+                "reach_test": lambda a: {"online": False}, "global_ip": lambda: "5.6.7.8", "shared_v4": lambda: False}
+        r = connectdiag.run(P("5.6.7.8"), {"running": True, "port": 25565}, deps)
+        self.assertEqual(r["items"][0]["level"], "error")
+        self.assertEqual(r["items"][0]["action"]["type"], "firewall")
+        shared = dict(deps, shared_v4=lambda: True)
+        r = connectdiag.run(P("5.6.7.8"), {"running": True, "port": 25565}, shared)
+        self.assertIn("外から入れない", r["items"][0]["title"])
+        moved = connectdiag.run(P("1.1.1.1"), {"running": True, "port": 25565}, deps)       # 住所が変わっていた
+        self.assertTrue(any("いまのインターネット上の住所と違います" in i["title"] for i in moved["items"]))
+        pl = connectdiag.run(P("abc.joinmc.link"), {"running": True, "port": 25565, "playit_alive": False}, deps)
+        self.assertEqual(pl["items"][0]["title"], "playit が動いていません")
+        ok = dict(deps, reach_test=lambda a: {"online": True})
+        r = connectdiag.run(P("5.6.7.8", wl="true"), {"running": True, "port": 25565}, ok)
+        self.assertTrue(any(i["title"].startswith("インターネットの外から") for i in r["items"]))
+        self.assertTrue(any("ホワイトリスト" in i["title"] for i in r["items"]))
+
+    def test_friendly_log_rules(self):
+        from oneclick.minecraft import conflicts
+        t = ("Taro (/1.2.3.4:5555) lost connection: You are not whitelisted on this server!\n"
+             "Outdated client! Please use 1.20.1\n"
+             "Can't keep up! Is the server overloaded? Running 5000ms or 100 ticks behind\n"
+             "Could not reserve enough space for 9999MB object heap\n"
+             "Mismatched mod channel list\n")
+        titles = [i["title"] for i in conflicts.analyze_text(t)]
+        for want in ("ホワイトリストにない人が、入ろうとしました", "友達のマイクラのバージョンが合っていません",
+                     "サーバーが重くて、処理が追いついていません", "メモリの設定が、PCに合っていません",
+                     "友達のMODが、サーバーと合っていません"):
+            self.assertIn(want, titles)
+
+
 class PresenceTests(unittest.TestCase):
     def test_card_lists_names_and_count(self):
         from oneclick import discordhub

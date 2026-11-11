@@ -10,9 +10,9 @@ import glob
 import os
 import subprocess
 
-from . import javamgr, loaders, mrpack, net
+from . import javamgr, javareq, loaders, mrpack, net
 from .javamgr import NO_WINDOW
-from .paths import IS_WINDOWS, load_json, safe_name, save_json
+from .paths import IS_WINDOWS, JAVA_DIR, load_json, safe_name, save_json
 
 
 def ensure_launcher_profiles(mc_dir: str):
@@ -114,7 +114,14 @@ def install_loader_client(mc_dir: str, mc: str, loader: str, lver: str | None, j
     raise ValueError(loader)
 
 
-def add_launcher_profile(mc_dir: str, key: str, name: str, version_id: str, game_dir: str, mem_gb: int):
+def _launcher_java(java_exe: str) -> str:
+    """ランチャーに教える Java(Windows は、窓を出さない javaw.exe)。"""
+    w = os.path.join(os.path.dirname(java_exe), "javaw.exe")
+    return w if os.path.isfile(w) else java_exe
+
+
+def add_launcher_profile(mc_dir: str, key: str, name: str, version_id: str, game_dir: str, mem_gb: int,
+                         java_exe: str | None = None):
     p = ensure_launcher_profiles(mc_dir)
     data = load_json(p, {"profiles": {}})
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
@@ -127,8 +134,36 @@ def add_launcher_profile(mc_dir: str, key: str, name: str, version_id: str, game
                     "-XX:G1HeapRegionSize=32M",
     })
     prof.setdefault("created", now)
+    if java_exe:      # このプロファイルだけ、用意した新しい Java で動かす(ほかのプロファイルには影響しない)
+        prof["javaDir"] = _launcher_java(java_exe)
+    elif str(prof.get("javaDir") or "").startswith(JAVA_DIR):
+        prof.pop("javaDir", None)      # もう要らなくなった(前にこのソフトが入れたもの)ときだけ外す
     data["profiles"][key] = prof
     save_json(p, data)
+
+
+def ensure_play_java(mc_dir: str, key: str, game_dir: str, mc: str, log=print) -> dict:
+    """遊ぶ前の確認: MODが新しい Java を要るなら、用意ずみか調べて、足りなければ自動で用意してプロファイルに設定する。"""
+    base = loaders.required_java(mc)
+    s = javareq.summarize(os.path.join(game_dir, "mods"), mc, base)
+    p = ensure_launcher_profiles(mc_dir)
+    data = load_json(p, {"profiles": {}})
+    prof = (data.get("profiles") or {}).get(key)
+    if not prof:
+        return {"status": "no_profile", "need": s["need"]}
+    if s["need"] <= base:
+        if str(prof.get("javaDir") or "").startswith(JAVA_DIR):      # 要らなくなった古い設定は外す
+            prof.pop("javaDir", None)
+            save_json(p, data)
+        return {"status": "standard", "need": base}
+    cur = str(prof.get("javaDir") or "")
+    if cur and os.path.isfile(cur) and javamgr.java_major(cur) == s["need"]:
+        return {"status": "ok", "need": s["need"]}
+    log(f"MODが Java {s['need']} を必要としています。自動で用意します…")
+    exe = javamgr.ensure_java(s["need"], log)
+    prof["javaDir"] = _launcher_java(exe)
+    save_json(p, data)
+    return {"status": "fixed", "need": s["need"]}
 
 
 def expect_from_pack(pack_path: str, skip: set[str] | None = None) -> dict:
@@ -206,12 +241,21 @@ def join_with_pack(pack_path: str, mc_dir: str, mem_gb: int, work_dir: str, log=
 
     need = loaders.required_java(info["mc"])
     java = javamgr.ensure_java(need, log)
+    # MODが、マイクラの標準より新しい Java を要るときは、その Java も自動で用意して、このプロファイルに使わせる
+    play_java, play_need = None, need
+    try:
+        s = javareq.summarize(mods_dir, info["mc"], need)
+        if s["need"] > need:
+            log(f"MODが Java {s['need']} を必要としています。自動で用意します（初回だけ少し時間がかかります）")
+            play_java, play_need = javamgr.ensure_java(s["need"], log), s["need"]
+    except Exception as e:  # noqa: BLE001
+        log(f"Java の確認でつまずきました（ふつうの Java で続けます）: {e}")
     os.makedirs(work_dir, exist_ok=True)
     vid = install_loader_client(mc_dir, info["mc"], info["loader"], info["loader_version"], java, work_dir, log)
-    add_launcher_profile(mc_dir, key, f"{info['name']}（マルチ用）", vid, game_dir, mem_gb)
+    add_launcher_profile(mc_dir, key, f"{info['name']}（マルチ用）", vid, game_dir, mem_gb, play_java)
     log("✅ 完了！ マイクラのランチャーで「" + info["name"] + "（マルチ用）」を選んで「プレイ」を押してください。")
     return {"name": info["name"], "game_dir": game_dir, "version_id": vid, "profile_key": key,
-            "mc": info["mc"], "loader": info["loader"], "pack_version": info.get("version"),
+            "mc": info["mc"], "loader": info["loader"], "pack_version": info.get("version"), "java": play_need,
             "update": mrpack.read_update_info(pack_path), "expect": expect_from_pack(pack_path, skip)}
 
 

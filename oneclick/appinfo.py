@@ -2,7 +2,7 @@
 
 リリースを出すときは VERSION を上げて、build.bat → make_release.bat の順に実行します。
 """
-VERSION = "3.3.1"
+VERSION = "3.4.0"
 APP_NAME = "OneClickServer"
 
 # 更新の置き場所(GitHub の公開リポジトリ。配布用の zip だけを置く)

@@ -16,7 +16,7 @@ import subprocess
 import threading
 import time
 
-from . import conflicts, javamgr, loaders
+from . import conflicts, javamgr, javareq, loaders
 from .javamgr import NO_WINDOW
 from .paths import load_json, save_json
 from .server import DONE_RE
@@ -42,6 +42,7 @@ def run_once(prof, log=print, cancel: threading.Event | None = None, timeout=900
     """1回だけ起動を試す。"""
     cancel = cancel or threading.Event()
     need = prof.get("java_major") or loaders.guess_java(prof.get("mc", ""))
+    need = max(need, javareq.server_java(prof, need))        # サーバーと同じ Java で試す
     java = javamgr.ensure_java(need, log)
     test_dir = os.path.join(prof.dir, TEST_DIR)
     shutil.rmtree(test_dir, ignore_errors=True)

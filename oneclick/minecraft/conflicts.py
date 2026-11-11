@@ -386,6 +386,14 @@ def check_server(prof) -> dict:
                                      "Modrinth に「一緒に使えない」と書かれています。",
                                      "どちらか一方をOFFにしてください。", None, []))
 
+    try:        # 遊ぶ人の Java が足りなくなるMODがないか
+        from . import javareq
+        ji = javareq.issue(prof)
+        if ji:
+            issues.append(ji)
+    except Exception:  # noqa: BLE001  調べられなくても、ほかのチェックは続ける
+        pass
+
     ignored = set(prof.get("ignored_deps") or [])
     if ignored:  # 「この警告は出さない」にした前提MODは、一覧から外す
         issues = [i for i in issues if not (i.get("action") and i["action"].get("type") == "install_dep"
@@ -541,6 +549,77 @@ LOG_RULES = [
      lambda m: _issue("error", f"MOD「{m.group(1)}」の読み込みに失敗しました",
                       "このMODが壊れているか、バージョンが合っていない可能性があります。",
                       f"「{m.group(1)}」を一度OFFにして起動してみてください。")),
+    # ---- ここから：友達が入れなかった理由・よくある困りごと(ログの言葉を、やさしい日本語に) ----
+    (re.compile(r"(?:(\w{3,16}) \(/[^)]*\) lost connection: )?You are not white-?listed on this server|Not whitelisted", re.I),
+     lambda m: _issue("warn", "ホワイトリストにない人が、入ろうとしました",
+                      "ホワイトリストが ON のサーバーは、リストにある人だけが入れます。" + (f"（入れなかった人: {m.group(1)}）" if m.group(1) else ""),
+                      "「メンバー・BAN」タブで、その人の名前をホワイトリストに入れてください。名前の打ち間違いにも気をつけてください。")),
+    (re.compile(r"Outdated client! Please use ([\w.\-+ ]+?)(?:\r|\n|$)", re.I),
+     lambda m: _issue("warn", "友達のマイクラのバージョンが合っていません",
+                      f"このサーバーはマイクラ {m.group(1).strip()} です。友達のマイクラは、それと違う（古い）バージョンでした。",
+                      "友達は、友達用パックの「参加する」ボタンを使うと、合うバージョンが自動で入ります。")),
+    (re.compile(r"Outdated server! I'm still on ([\w.\-+ ]+?)(?:\r|\n|$)", re.I),
+     lambda m: _issue("warn", "友達のマイクラのほうが、サーバーより新しいです",
+                      f"このサーバーはマイクラ {m.group(1).strip()} です。友達は、それより新しいバージョンで入ろうとしました。",
+                      "友達は、友達用パックの「参加する」ボタンを使うと、合うバージョンが自動で入ります。")),
+    (re.compile(r"Failed to verify username|Invalid session|Authentication servers are down|Not authenticated", re.I),
+     lambda m: _issue("warn", "友達の名前の確認（ログイン）に失敗しました",
+                      "正規のマイクラのアカウントで入る設定（online-mode）のサーバーで、アカウントの確認ができませんでした。"
+                      "ランチャーの再ログインや、Mojang の認証サーバーの混雑が原因のことがあります。",
+                      "友達に、ランチャーでログインし直して、もう一度入ってもらってください。それでもだめなら、少し待ってから試してください。")),
+    (re.compile(r"Mismatched mod channel list|Incompatible FML modded server|Server is missing (?:the )?mods?|"
+                r"Client is missing mods?|mod rejections|Mods? (?:mismatch|rejected)|Network error[^\n]*mod", re.I),
+     lambda m: _issue("error", "友達のMODが、サーバーと合っていません",
+                      "サーバーと友達のPCで、入っているMOD（またはそのバージョン）が違うため、入れませんでした。",
+                      "友達は、友達用パックの「参加する」ボタンで入れ直してください。ホストがMODを変えたときは、新しいパックが必要です。")),
+    (re.compile(r"(\w{3,16}) was kicked for floating too long|Fly kicked", re.I),
+     lambda m: _issue("warn", "飛んでいるとして、追い出された人がいます" + (f"（{m.group(1)}）" if m.group(1) else ""),
+                      "サーバーが「飛行は禁止」の設定のとき、浮いたままだと追い出されます（MODで飛べるときも同じです）。",
+                      "「設定」タブで「飛行を許可（allow-flight）」を ON にして、サーバーを再起動してください。")),
+    (re.compile(r"Connection throttled! Please wait before reconnecting", re.I),
+     lambda m: _issue("info", "短い時間に何度も入ろうとして、止められました",
+                      "同じ場所から、すぐに入り直そうとすると、サーバーが数秒だけ入れないようにします。",
+                      "10秒ほど待ってから、もう一度入ってもらってください。")),
+    (re.compile(r"Read timed out|ReadTimeoutException|Timed out", re.I),
+     lambda m: _issue("warn", "友達とサーバーの間の通信が、時間切れになりました",
+                      "回線が混んでいる・Wi-Fi が不安定・サーバーが重くて返事が遅い、のどれかです。",
+                      "友達は、できれば有線やWi-Fiの近くで。サーバーが重いときは「重さ・最適化」タブを見てください。")),
+    (re.compile(r"Connection reset|既存の接続はリモート ホストによって強制的に切断されました|Broken pipe", re.I),
+     lambda m: _issue("info", "友達の接続が、途中で切れました",
+                      "友達のネットが一瞬切れた・マイクラを閉じた、などで起きます。サーバーの故障ではありません。",
+                      "友達に、もう一度入ってもらってください。何度も起きるなら、友達の回線を見直してください。")),
+    (re.compile(r"Can't keep up! Is the server overloaded\? Running (\d+)ms or (\d+) ticks behind", re.I),
+     lambda m: _issue("warn", "サーバーが重くて、処理が追いついていません",
+                      f"処理が {int(m.group(1)) / 1000:.1f}秒ぶん遅れました。人が多い・MODが重い・メモリが足りない、などが原因です。",
+                      "「重さ・最適化」タブで原因を見てください。メモリを少し増やすのも効きます。")),
+    (re.compile(r"A single server tick took (\d+(?:\.\d+)?) seconds", re.I),
+     lambda m: _issue("warn", "サーバーが一瞬、固まりました",
+                      f"1回の処理に {float(m.group(1)):.0f}秒 かかりました。MODや大きな処理（地形の生成など）が原因のことがあります。",
+                      "何度も出るなら、「重さ・最適化」タブを見るか、最近入れたMODをOFFにしてみてください。")),
+    (re.compile(r"Could not reserve enough space for [^\n]*?heap|Invalid maximum heap size|Too small maximum heap", re.I),
+     lambda m: _issue("error", "メモリの設定が、PCに合っていません",
+                      "サーバーに割り当てたメモリが、いまPCで使えるメモリより大きいため、起動できませんでした。",
+                      "「ホーム」でメモリを減らしてください（PCのメモリの半分くらいまでが目安です）。ほかのソフトを閉じるのも効きます。")),
+    (re.compile(r"Unable to access jarfile", re.I),
+     lambda m: _issue("error", "サーバーのファイルが見つかりません",
+                      "サーバー本体のファイルが消えたか、壊れています（ウイルス対策ソフトが消した可能性もあります）。",
+                      "「サーバーの更新」でファイルを入れ直すか、サーバーを作り直してください。ワールドは、バックアップから戻せます。")),
+    (re.compile(r"No space left on device|ディスクの空き領域が不足|There is not enough space on the disk|ディスクに十分な空き", re.I),
+     lambda m: _issue("error", "ディスクの空きがありません",
+                      "PCの保存場所がいっぱいで、サーバーがデータを書けません。ワールドが壊れる原因にもなります。",
+                      "古いバックアップを減らす（「バックアップ」の「古いものを整理」）か、いらないファイルを消してください。")),
+    (re.compile(r"Failed to (?:load|read) level\.dat|Error (?:while )?loading level\.dat|Corrupted chunk|java\.util\.zip\.ZipException: invalid|EOFException[^\n]*region", re.I),
+     lambda m: _issue("error", "ワールドのデータが壊れているかもしれません",
+                      "ワールドの大事なファイルが読めませんでした。強制終了や、保存の途中で電源が切れたときに起きます。",
+                      "「バックアップ」タブで、少し前のバックアップに戻してください。戻す前に、いまの状態も自動で保存されます。")),
+    (re.compile(r"Cannot assign requested address", re.I),
+     lambda m: _issue("error", "サーバーの待ち受け先（server-ip）の設定が、間違っています",
+                      "server.properties の server-ip に、このPCにない住所が書かれているため、起動できませんでした。",
+                      "「設定」タブで、server-ip を空にして、保存してから起動してください。")),
+    (re.compile(r"Missing or unsupported mandatory dependencies|ModLoadingException|Mod loading error has occurred", re.I),
+     lambda m: _issue("error", "MODの読み込みで止まりました",
+                      "足りない前提MOD・バージョン違い・同じMODの重複のどれかが原因のことが多いです。",
+                      "「起動テスト・相性」タブの「相性チェック」を実行して、赤く出たものから直してください。")),
 ]
 
 
@@ -588,7 +667,7 @@ def analyze_text(text: str) -> list[dict]:
                 continue
             seen.add(it["title"])
             out.append(it)
-            if len(out) >= 12:
+            if len(out) >= 20:
                 return out
     return out
 

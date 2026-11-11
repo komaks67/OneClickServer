@@ -927,7 +927,7 @@ function viewServer(root) {
       </div>
     </div>
     <div data-lights>${lightsHtml(s)}</div><div data-pcwarn></div>
-    <div class="row" style="justify-content:flex-end;margin:4px 0"><button class="linkbtn" data-diag title="起動できない原因になりやすいことを、まとめて調べます">困ったとき診断</button><button class="linkbtn" data-delsrv title="このサーバーをフォルダごと消します">このサーバーを消す</button><button class="linkbtn" data-modebtn title="タブの数を切り替えます">${isDetail() ? "かんたん表示にする" : "詳しい機能も表示する"}</button></div>
+    <div class="row" style="justify-content:flex-end;margin:4px 0"><button class="linkbtn" data-diag title="起動できない原因になりやすいことを、まとめて調べます">困ったとき診断</button><button class="linkbtn" data-conndiag title="友達が入れないときの原因を、まとめて調べます">友達が入れないとき</button><button class="linkbtn" data-delsrv title="このサーバーをフォルダごと消します">このサーバーを消す</button><button class="linkbtn" data-modebtn title="タブの数を切り替えます">${isDetail() ? "かんたん表示にする" : "詳しい機能も表示する"}</button></div>
     ${navHtml(s)}
     <div class="tab-body" data-body></div>
   </div>`;
@@ -940,6 +940,7 @@ function viewServer(root) {
     if (first) { S.tab = first; S.sub = "installed"; viewServer(root); }
   }));
   $("[data-diag]", root).onclick = () => openDiagnose(cur() || s);
+  $("[data-conndiag]", root).onclick = () => openConnectDiag(cur() || s);
   $("[data-delsrv]", root).onclick = () => deleteServerFlow(cur() || s);
   $("[data-modebtn]", root).onclick = async () => { await setUiMode(isDetail() ? "simple" : "detail"); viewServer(root); };
   bindLights(root, s);
@@ -1952,6 +1953,9 @@ async function tabPublic(body, s) {
     <p class="lead">友達のマイクラから、あなたのPCのサーバーまで「道」を作ります。下の方法から1つ選んで、できたアドレスを一番下の欄に保存してください。</p>
 
     <div class="sec panel" data-netdiag></div>
+    <div class="sec panel"><div class="row"><h3 class="grow">🩺 友達が入れないとき</h3></div>
+      <p class="muted" style="margin:6px 0 10px">「入れない」と言われたら、ここを押してください。原因になりやすいところを、順に調べて、直し方を出します。</p>
+      <button class="btn primary" data-conndiag2>入れない原因を調べる</button></div>
 
     <div class="sec panel">
       <div class="row"><h3 class="grow">一番おすすめ: playit.gg を使う ${help("playit")}</h3><span class="badge ok">ルーターの設定なし・無料</span></div>
@@ -2030,6 +2034,7 @@ async function tabPublic(body, s) {
   const save = async (v) => { addr.value = v; await api("set_address", { id: s.id, address: v }); toast("アドレスを保存しました"); refreshState(); renderInvite($("[data-invite]", body), s); };
   $("[data-save]", body).onclick = () => save(addr.value.trim()).catch(fail);
   renderNetDiag($("[data-netdiag]", body), s, save);
+  $("[data-conndiag2]", body).onclick = () => openConnectDiag(s);
   $("[data-copy]", body).onclick = () => { navigator.clipboard.writeText(addr.value); toast("コピーしました。LINE や Discord に貼って送りましょう"); };
   $("[data-uselan]", body).onclick = () => save(p.lan_address).catch(fail);
   $("[data-playit]", body).onclick = async () => {
