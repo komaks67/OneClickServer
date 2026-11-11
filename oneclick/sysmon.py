@@ -13,7 +13,7 @@ import threading
 import time
 
 COOLDOWN = 3600
-DEFAULTS = {"on": True, "disk_gb": 10, "cpu": 90, "mem": 90}
+DEFAULTS = {"on": True, "disk_on": True, "cpu_on": True, "mem_on": True, "disk_gb": 10, "cpu": 90, "mem": 90}
 CPU_MINUTES = 5          # CPU がこの分数ずっと高かったときだけ知らせる(一瞬の高さでは鳴らさない)
 
 _state: dict = {}        # 警告の種類 -> {"since": 最初に高くなった時刻, "sent": 最後に知らせた時刻, "active": bool}
@@ -98,6 +98,10 @@ def evaluate(values: dict, cfg: dict, now: float) -> list:
                 st["active"] = False
                 out.append((kind, "recover", ok_title, "もう心配いりません。"))
 
+    for kind in ("disk", "cpu", "mem"):          # 個別に OFF にした項目は、見張らない(状態も忘れる)
+        if not cfg.get(kind + "_on", True):
+            _state.pop(kind, None)
+            values = {k: v for k, v in values.items() if k != ("disk_gb" if kind == "disk" else kind)}
     d = values.get("disk_gb")
     if d is not None:
         judge("disk", d < cfg["disk_gb"], "🟠 ディスクの空きが少なくなっています",

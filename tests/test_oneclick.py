@@ -281,6 +281,18 @@ class SysmonTests(unittest.TestCase):
         ev({"cpu": 10}, self.CFG, 100)                                          # 途中で下がったら数え直し
         self.assertEqual(ev({"cpu": 99}, self.CFG, 301), [])
 
+    def test_each_item_can_be_switched_off(self):
+        ev = self.sm.evaluate
+        off = dict(self.CFG, mem_on=False)
+        v = {"disk_gb": 1, "mem": 99}
+        self.assertEqual([x[0] for x in ev(v, off, 0)], ["disk"])               # メモリだけ出ない
+        self.assertEqual(ev({"mem": 99}, off, 100), [])
+        self.sm._state.clear()
+        ev(v, self.CFG, 200)
+        self.assertEqual([x[0] for x in ev(v, self.CFG, 261)], ["mem"])         # ONなら、メモリも(1分後に)出る
+        self.assertEqual(ev({"mem": 10}, off, 400), [])                         # 警告中に OFF → 復旧通知も出さない
+        self.assertEqual(self.sm.DEFAULTS["mem_on"], True)
+
     def test_real_measurements_work_here(self):
         self.assertGreater(self.sm.disk_free_gb("."), 0)
         m = self.sm.mem_percent()

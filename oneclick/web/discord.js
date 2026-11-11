@@ -53,9 +53,14 @@
         <p class="small">PCが危ないときだけ、パネルを置いたチャンネルに知らせます。同じお知らせは<b>1時間に1回</b>まで。直ったときは、1回だけ「もとに戻りました」と出ます。</p>
         <label class="chk"><input type="checkbox" id="aOn" ${d.alerts.on ? "checked" : ""}>警告を出す</label>
         <div class="row">
-          <label>ディスクの空きが、この GB より少ない<input type="number" id="aDisk" min="1" max="2000" value="${esc(d.alerts.disk_gb)}"></label>
-          <label>CPU が、この % 以上(5分続いたとき)<input type="number" id="aCpu" min="50" max="100" value="${esc(d.alerts.cpu)}"></label>
-          <label>メモリが、この % 以上<input type="number" id="aMem" min="50" max="100" value="${esc(d.alerts.mem)}"></label></div>
+          <label class="chk"><input type="checkbox" id="aDiskOn" ${d.alerts.disk_on ? "checked" : ""}>ディスクの空きを見張る</label>
+          <label>この GB より少ないとき<input type="number" id="aDisk" min="1" max="2000" value="${esc(d.alerts.disk_gb)}"></label></div>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="aCpuOn" ${d.alerts.cpu_on ? "checked" : ""}>CPU(PCの重さ)を見張る</label>
+          <label>この % 以上が5分続いたとき<input type="number" id="aCpu" min="50" max="100" value="${esc(d.alerts.cpu)}"></label></div>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="aMemOn" ${d.alerts.mem_on ? "checked" : ""}>メモリが足りなくなったら知らせる</label>
+          <label>この % 以上のとき<input type="number" id="aMem" min="50" max="100" value="${esc(d.alerts.mem)}"></label></div>
         <div class="btns"><button class="btn main" id="bSaveAl">保存する</button></div></section>
       <p class="small">トークンは、ボットを自由に動かせる鍵です。人に見せないでください(このPCの中だけに、暗号化して保存します)。決めた人以外がボタンを押しても、動きません。</p>`;
     const again = (ms = 800) => setTimeout(render, ms);
@@ -95,7 +100,10 @@
     };
     q("#bSaveAl", body).onclick = async () => {
       try {
-        await api("bot_set", {alerts: {on: q("#aOn", body).checked, disk_gb: q("#aDisk", body).value,
+        await api("bot_set", {alerts: {on: q("#aOn", body).checked,
+                                       disk_on: q("#aDiskOn", body).checked, cpu_on: q("#aCpuOn", body).checked,
+                                       mem_on: q("#aMemOn", body).checked,
+                                       disk_gb: q("#aDisk", body).value,
                                        cpu: q("#aCpu", body).value, mem: q("#aMem", body).value}});
         toast("保存しました"); again();
       } catch (e) { fail(e); }

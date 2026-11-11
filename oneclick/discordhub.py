@@ -482,6 +482,9 @@ def bot_set(token=None, channel=None, users=None, alerts=None) -> dict:
             raise HubError("警告の設定がおかしいです。")
         try:
             c["alerts"] = {"on": bool(alerts.get("on", True)),
+                           "disk_on": bool(alerts.get("disk_on", True)),
+                           "cpu_on": bool(alerts.get("cpu_on", True)),
+                           "mem_on": bool(alerts.get("mem_on", True)),
                            "disk_gb": max(1, min(2000, int(float(alerts.get("disk_gb", 10))))),
                            "cpu": max(50, min(100, int(float(alerts.get("cpu", 90))))),
                            "mem": max(50, min(100, int(float(alerts.get("mem", 90)))))}
