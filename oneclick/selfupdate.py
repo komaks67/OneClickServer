@@ -172,56 +172,60 @@ def _verify_tree(root: str) -> None:
         raise UpdateError("Python の部品（base_library.zip）が入っていません。この版は起動できないので、入れません。")
 
 
-def _script(app_dir: str, new_root: str, pid: int, data_dir: str) -> str:
-    exe = f"{appinfo.APP_NAME}.exe"
-    return f"""@echo off
-chcp 65001 >nul
-set "APP={app_dir}"
-set "NEW={new_root}"
-set "DATA={data_dir}"
-set "EXE={exe}"
-set "PID={pid}"
-set "LOG=%DATA%\\update.log"
-set "RENAMED=0"
-echo [%date% %time%] 更新を始めます >> "%LOG%"
+# 入れ替えのバッチ。日本語は入れない（cmd は UTF-8 の日本語が入ると、行やラベルを読みまちがえて、固まることがある）。
+# フォルダの場所などは、バッチの中に書かず、環境変数（APP / NEW / DATA / EXE）で渡す。
+SCRIPT = r"""@echo off
+setlocal
+set "LOG=%DATA%\update.log"
+echo [%date% %time%] update start >> "%LOG%"
 set /a n=0
-:wait
-tasklist /FI "PID eq %PID%" 2>nul | find "%PID%" >nul
-if errorlevel 1 goto go
+set "RENAMED=0"
+:retry
+if exist "%APP%\_internal.old" rmdir /s /q "%APP%\_internal.old" 2>nul
+if exist "%APP%\%EXE%.old" del /f /q "%APP%\%EXE%.old" 2>nul
+if not exist "%APP%\_internal" goto skiprename
+ren "%APP%\_internal" _internal.old 2>nul
+if not errorlevel 1 goto renamed
 set /a n+=1
-if %n% GEQ 60 goto go
+if %n% GEQ 60 goto rollback
 ping -n 2 127.0.0.1 >nul
-goto wait
-:go
-ping -n 3 127.0.0.1 >nul
-if exist "%APP%\\_internal.old" rmdir /s /q "%APP%\\_internal.old"
-if exist "%APP%\\%EXE%.old" del /f /q "%APP%\\%EXE%.old"
-if not exist "%APP%\\_internal" goto skiprename
-ren "%APP%\\_internal" _internal.old
-if errorlevel 1 goto rollback
+goto retry
+:renamed
 set "RENAMED=1"
+echo [%date% %time%] old app closed after %n% tries >> "%LOG%"
 :skiprename
-if exist "%APP%\\%EXE%" copy /y "%APP%\\%EXE%" "%APP%\\%EXE%.old" >nul
-robocopy "%NEW%" "%APP%" /E /XD "%NEW%\\data" /R:15 /W:2 /NFL /NDL /NJH /NJS /NP >> "%LOG%"
+if exist "%APP%\%EXE%" copy /y "%APP%\%EXE%" "%APP%\%EXE%.old" >nul
+robocopy "%NEW%" "%APP%" /E /XD "%NEW%\data" /R:15 /W:2 /NFL /NDL /NJH /NJS /NP >> "%LOG%"
 if errorlevel 8 goto rollback
-echo [%date% %time%] 入れ替え成功 >> "%LOG%"
-if exist "%APP%\\_internal.old" rmdir /s /q "%APP%\\_internal.old"
-if exist "%APP%\\%EXE%.old" del /f /q "%APP%\\%EXE%.old"
-start "" "%APP%\\%EXE%"
+echo [%date% %time%] update ok >> "%LOG%"
+if exist "%APP%\_internal.old" rmdir /s /q "%APP%\_internal.old"
+if exist "%APP%\%EXE%.old" del /f /q "%APP%\%EXE%.old"
+start "" "%APP%\%EXE%"
 goto end
 :rollback
-echo [%date% %time%] 失敗。元の版にもどします >> "%LOG%"
+echo [%date% %time%] update failed, rolling back >> "%LOG%"
 if not "%RENAMED%"=="1" goto restoreexe
-if exist "%APP%\\_internal" rmdir /s /q "%APP%\\_internal"
-ren "%APP%\\_internal.old" _internal
+if exist "%APP%\_internal" rmdir /s /q "%APP%\_internal"
+ren "%APP%\_internal.old" _internal
 :restoreexe
-if exist "%APP%\\%EXE%.old" copy /y "%APP%\\%EXE%.old" "%APP%\\%EXE%" >nul
-if exist "%APP%\\%EXE%.old" del /f /q "%APP%\\%EXE%.old"
-echo failed > "%DATA%\\update_failed.txt"
-start "" "%APP%\\%EXE%"
+if exist "%APP%\%EXE%.old" copy /y "%APP%\%EXE%.old" "%APP%\%EXE%" >nul
+if exist "%APP%\%EXE%.old" del /f /q "%APP%\%EXE%.old"
+echo failed > "%DATA%\update_failed.txt"
+start "" "%APP%\%EXE%"
 :end
 exit /b 0
 """
+
+
+def _script(app_dir: str = "", new_root: str = "", pid: int = 0, data_dir: str = "") -> str:
+    """入れ替えのバッチ(英数字だけ)。引数は、前の版との互換のためで、使いません。"""
+    return SCRIPT
+
+
+def _env(app_dir: str, new_root: str, data_dir: str) -> dict:
+    env = dict(os.environ)
+    env.update({"APP": app_dir, "NEW": new_root, "DATA": data_dir, "EXE": f"{appinfo.APP_NAME}.exe"})
+    return env
 
 
 def apply(job, any_server_running, shutdown) -> dict:
@@ -257,11 +261,14 @@ def apply(job, any_server_running, shutdown) -> dict:
     except OSError:
         pass
     bat = os.path.join(UPDATE_DIR, "apply_update.bat")
-    with open(bat, "w", encoding="utf-8", newline="\r\n") as f:
-        f.write(_script(os.path.abspath(APP_DIR), os.path.abspath(new_root), os.getpid(), os.path.abspath(BASE_DIR)))
+    with open(bat, "w", encoding="ascii", newline="\r\n") as f:
+        f.write(SCRIPT)
     log("ソフトをいったん終了して、入れ替えます。数秒後に、自動で開き直します。")
-    flags = 0x08000000 | 0x00000008 | 0x00000200   # 窓なし・切り離し・新しいグループ
-    subprocess.Popen(["cmd.exe", "/c", bat], creationflags=flags, close_fds=True, cwd=UPDATE_DIR,
+    # 窓なし(CREATE_NO_WINDOW) + 新しいグループ。DETACHED_PROCESS は付けない
+    # (いっしょに付けると、部品(find など)が、毎回あたらしい黒い画面を開いて、固まる)
+    flags = 0x08000000 | 0x00000200
+    subprocess.Popen(["cmd.exe", "/d", "/c", bat], creationflags=flags, close_fds=True, cwd=UPDATE_DIR,
+                     env=_env(os.path.abspath(APP_DIR), os.path.abspath(new_root), os.path.abspath(BASE_DIR)),
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     shutdown(False)
     return {"ok": True, "version": info["latest"]}

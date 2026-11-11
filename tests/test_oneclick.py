@@ -676,10 +676,29 @@ class UpdateTests(unittest.TestCase):
         self.assertIsNone(selfupdate.required())
 
     def test_script_keeps_data(self):
-        s = selfupdate._script("C:\\app", "C:\\new", 123, "C:\\app\\data")
+        s = selfupdate._script()
         self.assertIn("/XD", s)
         self.assertIn("rollback", s)
-        self.assertIn("OneClickServer.exe", s)
+        self.assertIn("%EXE%", s)
+
+    def test_script_is_ascii_and_has_no_pipes(self):
+        """日本語が入ると cmd が固まることがある。待つ処理に find・tasklist のパイプも使わない。"""
+        s = selfupdate.SCRIPT
+        s.encode("ascii")                       # 日本語・全角が入っていないこと
+        self.assertNotIn("find ", s)
+        self.assertNotIn("tasklist", s)
+        self.assertNotIn("chcp", s)
+        # ラベルは、gotoで飛ぶ先が全部ある
+        import re
+        labels = set(re.findall(r"^:(\w+)", s, re.M))
+        for g in re.findall(r"goto (\w+)", s):
+            self.assertIn(g, labels, g)
+
+    def test_env_carries_paths_with_japanese(self):
+        env = selfupdate._env("C:\\ユーザー\\app", "C:\\new", "C:\\ユーザー\\app\\data")
+        self.assertEqual(env["APP"], "C:\\ユーザー\\app")
+        self.assertEqual(env["EXE"], "OneClickServer.exe")
+        self.assertIn("DATA", env)
 
 
 class PreflightAndStatus(unittest.TestCase):
