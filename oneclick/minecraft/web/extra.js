@@ -112,7 +112,7 @@ async function renderPreflight(el, s) {
     const bad = r.items.filter((i) => i.level === "error").length, warn = r.items.filter((i) => i.level === "warn").length;
     body.className = "";
     body.innerHTML = `<div class="${bad ? "note error" : warn ? "note warn" : "note ok"}" style="margin:0 0 8px"><b>${bad ? `直したほうがいいところが ${bad}つあります` : warn ? "起動できます（気をつけたいところが少しあります）" : "起動して大丈夫です"}</b></div>
-      <div class="stack" style="gap:6px">${r.items.map((i) => `<div class="small"><span aria-hidden="true">${ic[i.level] || "・"}</span> <b>${esc(i.title)}</b>${i.detail ? `<div class="muted" style="margin-left:1.6em">${esc(i.detail)}</div>` : ""}${i.fix ? `<div style="margin-left:1.6em">→ ${esc(i.fix)}</div>` : ""}</div>`).join("")}</div>`;
+      <div class="stack" style="gap:6px">${r.items.map((i) => `<div class="small"><span aria-hidden="true">${ic[i.level] || "・"}</span> <b>${esc(maskIps(i.title))}</b>${i.detail ? `<div class="muted" style="margin-left:1.6em">${esc(maskIps(i.detail))}</div>` : ""}${i.fix ? `<div style="margin-left:1.6em">→ ${esc(i.fix)}</div>` : ""}</div>`).join("")}</div>`;
   };
   $("[data-pfgo]", el).onclick = run;
   run();
@@ -128,7 +128,7 @@ function listCardHtml(s) {
     <div class="chips" style="margin:8px 0"><span class="badge">マイクラ ${esc(s.mc)}</span><span class="badge">${esc(s.loader_label)}</span><span class="badge">MOD ${s.mods}個</span><span class="badge">メモリ ${gb(s.memory_mb)}</span><span class="badge">ポート ${esc(s.port)}</span></div>
     ${starting && s.progress ? `<div class="meter" style="margin:6px 0"><i style="width:${Math.min(100, s.progress.pct)}%;background:#80ff20;transition:width .3s"></i></div><div class="small muted">${s.progress.pct}%　${esc(s.progress.stage || "")}</div>` : ""}
     <div class="small" style="margin:6px 0"><b>参加中: ${(s.players || []).length}人</b>${(s.players || []).length ? "　" + (s.players || []).map((n) => `<span class="nm">${esc(n)}</span>`).join("、") : ""}</div>
-    <div class="small" style="margin:6px 0">${s.address ? `アドレス: <code>${esc(s.address)}</code> ${cpBtn(s.address, "コピー", "アドレス")}` : `<span class="muted">アドレスは、まだ決まっていません</span>`}</div>
+    <div class="small" style="margin:6px 0">${s.address ? `アドレス: <code>${addrSecret(s.address)}</code>${isPublicIpLiteral(s.address) ? "" : " " + cpBtn(s.address, "コピー", "アドレス")}` : `<span class="muted">アドレスは、まだ決まっていません</span>`}</div>
     <div class="row" style="margin-top:10px;gap:6px"><button class="btn sm primary" data-lopen>開く</button>
       <button class="btn sm" data-lstart ${s.status === "stopped" ? "" : "disabled"}>▶ 起動</button>
       <button class="btn sm" data-lstop ${running || starting ? "" : "disabled"}>■ 停止</button>
@@ -573,14 +573,14 @@ function renderNetDiag(el, s, save) {
         : ["playit.gg", "この回線では、ほかの方法が使えません。playit.gg（無料の登録が1回だけ必要）を使ってください。"];
     $("[data-ndres]", el).innerHTML = `<div class="note ok"><b>おすすめ: ${best[0]}</b>${best[1]}</div>
       ${row(d.upnp && !d.shared_v4, "自動ポート開放（UPnP）", !d.upnp ? "ルーターが対応していないか、機能がOFFです。" : d.shared_v4 ? "ルーターは対応していますが、この回線は「共有アドレス」（v6プラス・マンションの回線など）なので、開けても外から入れません。" : "使えます。")}
-      ${row(!!d.ipv6, "IPv6 で直接つなぐ", d.ipv6 ? `使えます。アドレス: <code>${esc(d.ipv6_address)}</code> ${cpBtn(d.ipv6_address, "コピー", "アドレス")}
+      ${row(!!d.ipv6, "IPv6 で直接つなぐ", d.ipv6 ? `使えます。アドレス: <code>${ipSecret(d.ipv6_address)}</code>
           <div style="margin-top:4px">注意: ①友達の回線も IPv6 に対応している必要があります　②ルーターの「IPv6 フィルタ（外からの通信を止める設定）」で、ポート ${d.port} を通す設定が必要なことがあります　③このアドレスは、ときどき変わります。</div>
           <button class="btn sm" data-usev6 style="margin-top:6px">このアドレスを使う</button>` : "この回線（またはこのPC）では、IPv6 が使えません。")}
       ${row(true, "playit.gg", d.playit ? "いま動いています。" : "どの回線でも使えます（無料の登録が1回だけ必要）。下の「▶ playit を起動」から始めます。")}
-      <div class="small muted" style="margin-top:8px">インターネットから見たアドレス（IPv4）: ${esc(d.ipv4 || "わかりませんでした")}</div>`;
+      <div class="small muted" style="margin-top:8px">インターネットから見たアドレス（IPv4）: ${d.ipv4 ? ipSecret(d.ipv4) : "わかりませんでした"}</div>`;
     const b = $("[data-usev6]", el);
     if (b) b.onclick = async () => {
-      if (!(await ask("IPv6 のアドレスを使う", `<p>友達に渡すアドレスを <code>${esc(d.ipv6_address)}</code> にします。</p><p class="small">友達の回線が IPv6 に対応していないと、入れません。つながらない友達がいたら、playit.gg に切り替えてください。</p>`, "使う"))) return;
+      if (!(await ask("IPv6 のアドレスを使う", `<p>友達に渡すアドレスを、いま調べた IPv6 アドレスにします。</p><p class="small">友達の回線が IPv6 に対応していないと、入れません。つながらない友達がいたら、playit.gg に切り替えてください。</p>`, "使う"))) return;
       save(d.ipv6_address).catch(fail);
     };
   };
@@ -656,7 +656,7 @@ async function openConnectDiag(s) {
   const ic = { ok: "✅", info: "ℹ️", warn: "⚠️", error: "⛔" };
   const cls = r.errors ? "error" : r.warnings ? "warn" : "ok";
   body.innerHTML = `<div class="note ${cls}" style="margin:0 0 10px"><b>${esc(r.headline)}</b>${r.errors ? "上から順に、直してみてください。" : ""}</div>
-    <div class="stack" style="gap:8px">${r.items.map((i, n) => `<div class="small"><span aria-hidden="true">${ic[i.level] || "・"}</span> <b>${esc(i.title)}</b>${i.detail ? `<div class="muted" style="margin-left:1.6em">${esc(i.detail)}</div>` : ""}${i.fix ? `<div style="margin-left:1.6em">→ ${esc(i.fix)}</div>` : ""}${i.action ? `<div style="margin-left:1.6em;margin-top:4px"><button class="btn sm primary" data-cact="${n}">${esc(i.action.label || "直す")}</button></div>` : ""}</div>`).join("")}</div>`;
+    <div class="stack" style="gap:8px">${r.items.map((i, n) => `<div class="small"><span aria-hidden="true">${ic[i.level] || "・"}</span> <b>${esc(maskIps(i.title))}</b>${i.detail ? `<div class="muted" style="margin-left:1.6em">${esc(maskIps(i.detail))}</div>` : ""}${i.fix ? `<div style="margin-left:1.6em">→ ${esc(i.fix)}</div>` : ""}${i.action ? `<div style="margin-left:1.6em;margin-top:4px"><button class="btn sm primary" data-cact="${n}">${esc(i.action.label || "直す")}</button></div>` : ""}</div>`).join("")}</div>`;
   $$("[data-cact]", body).forEach((b) => {
     b.onclick = async () => {
       const a = r.items[Number(b.dataset.cact)].action;

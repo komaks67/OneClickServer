@@ -443,6 +443,63 @@ class JavaReqTests(unittest.TestCase):
             self.assertIn(want, titles)
 
 
+class IpHideTests(unittest.TestCase):
+    """IPアドレスは、通知に書かない・画面ではふだん隠す。"""
+
+    def test_notifications_hide_ips(self):
+        from oneclick.minecraft import watch
+        self.assertEqual(watch.hide_ips("Steve（203.0.113.5）が入ろうとしました"), "Steve（(IPは非表示)）が入ろうとしました")
+        self.assertEqual(watch.hide_ips("[/203.0.113.5:54321] lost connection"), "[/(IPは非表示)] lost connection")
+        self.assertIn("127.0.0.1", watch.hide_ips("from 127.0.0.1"))                 # 自分のPCはそのまま
+        self.assertEqual(watch.hide_ips("Fabric 0.16.9 と 1.21.1"), "Fabric 0.16.9 と 1.21.1")   # バージョンは消さない
+        self.assertEqual(watch.hide_ips(""), "")
+
+    def test_notify_strips_ips_before_sending(self):
+        # 通知の入口(_notify)で hide_ips を通していること / 侵入の通知文に IP を書いていないこと
+        from oneclick.minecraft import api
+        src = open(api.__file__, encoding="utf-8").read()
+        self.assertIn("watch.hide_ips(title), watch.hide_ips(text)", src)
+        self.assertNotIn('_notify(id, "intrusion", "🚨 知らない人が入ろうとしました", msg', src)
+        self.assertNotIn('_notify(id, "intrusion", "🚨 あやしいアクセス", msg', src)
+
+    def test_ui_helpers_in_node(self):
+        import re
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("node がありません")
+        js = open(os.path.join(os.path.dirname(shell.__file__), "minecraft", "web", "app.js"), encoding="utf-8").read()
+        a = js.index("const IP_MASK")
+        b = js.index("const ipTimers")
+        block = js[a:b]
+        script = block + """
+const esc = (s) => String(s ?? "");
+const cpBtn = () => "";
+const out = {
+  masked: maskIps("Steve[/203.0.113.5:54321] logged in"),
+  keep127: maskIps("from 127.0.0.1"),
+  ver: maskIps("Fabric 0.16.9 / 1.21.1 / mod-1.2.3.4"),
+  p1: isPublicIpLiteral("203.0.113.5:25565"), p2: isPublicIpLiteral("192.168.1.5"), p3: isPublicIpLiteral("xxxx.joinmc.link"),
+  p4: isPublicIpLiteral("2400:1234::1"), p5: isPublicIpLiteral("[2400:1234::1]:25565"), p6: isPublicIpLiteral("10.0.0.2"), p7: isPublicIpLiteral("172.20.0.1"),
+  html: ipSecret("203.0.113.5"),
+};
+console.log(JSON.stringify(out));
+"""
+        r = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        o = json.loads(r.stdout)
+        self.assertEqual(o["masked"], "Steve[/" + "●●●.●●●.●●●.●●●" + ":54321] logged in")
+        self.assertEqual(o["keep127"], "from 127.0.0.1")
+        self.assertIn("0.16.9", o["ver"]); self.assertIn("1.21.1", o["ver"]); self.assertIn("mod-1.2.3.4", o["ver"])
+        self.assertTrue(o["p1"] and o["p4"] and o["p5"])
+        self.assertFalse(o["p2"] or o["p3"] or o["p6"] or o["p7"])
+        self.assertIn("●●●.●●●.●●●.●●●", o["html"])
+        self.assertIn("data-ipshow", o["html"])
+        self.assertNotRegex(re.sub(r'data-ipv="[^"]*"', "", o["html"]), r"203\.0\.113\.5.*●")   # 見える所には本物のIPがない
+        # 表示用の文字(ボタンの外)に、本物の IP が出ていないこと
+        visible = re.sub(r"<[^>]*>", "", o["html"])
+        self.assertNotIn("203.0.113.5", visible)
+
+
 class PresenceTests(unittest.TestCase):
     def test_card_lists_names_and_count(self):
         from oneclick import discordhub

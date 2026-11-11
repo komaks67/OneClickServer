@@ -461,7 +461,7 @@ async function renderBans(el, s) {
   let b;
   try { b = await api("bans_get", { id: s.id }); } catch (e) { el.innerHTML = ""; return; }
   const list = (items, kind, keyf) => items.length ? `<div class="list" style="margin-top:10px">${items.map((x) => `<div class="item noselect"><span class="face player" style="padding:0;box-shadow:none;background:none"><span class="face" style="background:var(--redstone)"></span></span>
-      <div><div class="t">${esc(keyf(x))}</div><div class="s">${esc(x.reason || "")}${x.created ? "　" + esc(x.created) : ""}</div></div>${cpBtn(keyf(x), "コピー", kind === "ip" ? "IPアドレス" : "名前")}<button class="btn sm ghost" data-unban="${kind}" data-t="${esc(keyf(x))}">解除</button></div>`).join("")}</div>` : `<p class="faint small">いません</p>`;
+      <div><div class="t">${kind === "ip" ? ipSecret(keyf(x)) : esc(keyf(x))}</div><div class="s">${esc(x.reason || "")}${x.created ? "　" + esc(x.created) : ""}</div></div>${kind === "ip" ? "" : cpBtn(keyf(x), "コピー", "名前")}<button class="btn sm ghost" data-unban="${kind}" data-t="${esc(keyf(x))}">解除</button></div>`).join("")}</div>` : `<p class="faint small">いません</p>`;
   el.innerHTML = `<h2 style="margin-top:26px">BAN（入れなくする）</h2><p class="muted small">荒らしなどを、二度と入れないようにします。名前を変えて来る人には IPアドレスでの BAN もできます（家族など同じ回線の人も入れなくなるので注意）。</p>
     <div class="grid2" style="margin-top:12px">
       <div class="panel"><h3>名前で BAN</h3><div class="inline-field" style="margin-top:8px"><input type="text" data-bn placeholder="マイクラの名前"><input type="text" data-br placeholder="理由（なくてもOK）"><button class="btn danger" data-ban="player">BAN</button></div>${list(b.players, "player", (x) => x.name)}</div>

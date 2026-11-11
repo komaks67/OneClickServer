@@ -24,6 +24,14 @@ settings_ref: dict = {}   # api が settings を入れる（送り主の名前�
 _q: queue.Queue = queue.Queue(maxsize=200)
 
 
+_IPV4_HIDE = re.compile(r"(^|[^\w.-])((?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d))(?::\d+)?(?![\w-]|\.\d)")
+
+
+def hide_ips(text: str) -> str:
+    """通知(Discord・デスクトップ)に、IPアドレスが入らないようにする。127.x(自分のPC)はそのまま。"""
+    return _IPV4_HIDE.sub(lambda m: m.group(0) if m.group(2).startswith("127.") else m.group(1) + "(IPは非表示)", text or "")
+
+
 def sender_name() -> str:
     """Discord に出る送り主の名前（1〜80文字。Discord の決まりで「discord」などは使えない）。"""
     n = (settings_ref.get("discord_name") or DEFAULT_NAME).strip()[:80]

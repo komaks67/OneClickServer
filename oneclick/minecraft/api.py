@@ -3032,6 +3032,7 @@ def _play(id) -> watch.Playtime:
 
 def _notify(id, kind, title, text="", desktop=False):
     p = _prof(id)
+    title, text = watch.hide_ips(title), watch.hide_ips(text)     # 通知には IP を書かない
     url = settings.get("discord_webhook")
     events = p.get("discord_events", DISCORD_DEFAULT)
     if url and kind in events:
@@ -3162,7 +3163,9 @@ def _watch_line(id, line):
             who = ev.get("name") or "誰か"
             msg = f"{who}（{ev.get('ip') or 'IP不明'}）が入ろうとしました（{ev['reason']}ので、断りました）"
             consoles.setdefault(id, Console()).add("🚨 " + msg)
-            _notify(id, "intrusion", "🚨 知らない人が入ろうとしました", msg, desktop=True)
+            # Discord・デスクトップの通知には、IP を書かない（見られると危険なので。IP は「あやしいアクセス」の表で確認）
+            _notify(id, "intrusion", "🚨 知らない人が入ろうとしました",
+                    f"{who}が入ろうとしました（{ev['reason']}ので、断りました）。IPアドレスは、ソフトの「あやしいアクセス」で確認できます。", desktop=True)
     return False
 
 
@@ -3173,7 +3176,10 @@ def _gateway_event(id, kind, ip, info=None):
         msg = (f"BAN している IP（{ip}）からつなごうとしたので、断りました" if kind == "blocked"
                else f"{ip} から1分に {info.get('count') if info else '?'}回以上つないできたので、5分間断ります（いたずら・攻撃かもしれません）")
         consoles.setdefault(id, Console()).add("🚨 " + msg)
-        _notify(id, "intrusion", "🚨 あやしいアクセス", msg, desktop=kind == "flood")
+        _notify(id, "intrusion", "🚨 あやしいアクセス",
+                ("BAN している IP からつなごうとしたので、断りました" if kind == "blocked"
+                 else f"同じ場所から1分に {info.get('count') if info else '?'}回以上つないできたので、5分間断ります（いたずら・攻撃かもしれません）")
+                + "。IPアドレスは、ソフトの「あやしいアクセス」で確認できます。", desktop=kind == "flood")
 
 
 def _banned_ips(id) -> set:

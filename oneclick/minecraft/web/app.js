@@ -113,6 +113,79 @@ function info(title, bodyHtml, okText = "OK") {
   });
 }
 
+// ---------------- IPアドレスの隠し表示（確認してから見せる） ----------------
+// IPアドレスは、他の人に見せると危険な情報。ふだんは「●●●」で隠して、
+// 「表示する」→ 確認 → 見える（30秒で、また自動で隠れる）。
+const IP_MASK = "●●●.●●●.●●●.●●●";
+const IP_SHOW_MS = 30000;
+const IPV4_IN_TEXT = /(^|[^\w.-])((?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d))(?![\w-]|\.\d)/g;
+// 文章の中の IPv4 を隠す（127.x は自分のPCなのでそのまま）
+const maskIps = (text) => String(text ?? "").replace(IPV4_IN_TEXT, (m, pre, ip) => (/^127\./.test(ip) ? m : pre + IP_MASK));
+function ipHost(a) {
+  a = String(a || "").trim();
+  const m = a.match(/^\[([^\]]+)\](?::\d+)?$/);
+  if (m) return m[1];
+  if ((a.match(/:/g) || []).length === 1) return a.split(":")[0];
+  return a;
+}
+// 「1.2.3.4:25565」のような、数字だけのアドレス(家の中だけのものは除く)か
+function isPublicIpLiteral(a) {
+  const h = ipHost(a);
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {
+    const [x, y] = h.split(".").map(Number);
+    return !(x === 0 || x === 10 || x === 127 || (x === 192 && y === 168) || (x === 172 && y >= 16 && y <= 31) || (x === 169 && y === 254));
+  }
+  if (h.includes(":")) { const l = h.toLowerCase(); return !(l === "::1" || l.startsWith("fe80") || /^f[cd]/.test(l)); }
+  return false;
+}
+// 隠した IP の表示（HTML）。「表示する」を押して、確認してから見える。コピーも、見えているあいだだけ。
+function ipSecret(text, { copy = true } = {}) {
+  return `<span class="ipv" data-ipv="${esc(text)}"><span class="ipt">${IP_MASK}</span> <button type="button" class="btn sm ghost" data-ipshow>表示する</button><span class="ipc" hidden> ${copy && typeof cpBtn === "function" ? cpBtn(text, "コピー", "IPアドレス") : ""}</span></span>`;
+}
+const addrSecret = (a, opts) => (isPublicIpLiteral(a) ? ipSecret(a, opts) : esc(a));
+const ipTimers = new WeakMap();
+function ipHide(w) {
+  clearTimeout(ipTimers.get(w));
+  w.dataset.on = "0";
+  const t = w.querySelector(".ipt"), b = w.querySelector("[data-ipshow]"), c = w.querySelector(".ipc");
+  if (t) t.textContent = IP_MASK;
+  if (b) b.textContent = "表示する";
+  if (c) c.hidden = true;
+}
+function ipReveal(w) {
+  clearTimeout(ipTimers.get(w));
+  w.dataset.on = "1";
+  const t = w.querySelector(".ipt"), b = w.querySelector("[data-ipshow]"), c = w.querySelector(".ipc");
+  if (t) t.textContent = w.dataset.ipv;
+  if (b) b.textContent = "隠す";
+  if (c) c.hidden = false;
+  ipTimers.set(w, setTimeout(() => ipHide(w), IP_SHOW_MS));
+}
+// 見せる前の確認（毎回）
+async function confirmShowIp() {
+  return !!(await ask("IPアドレスを表示しますか？",
+    `<p><b>IPアドレスは、他の人に見せると危険な情報です。</b></p><p>配信・画面共有・録画・スクリーンショットをしていませんか？</p><p class="small muted">表示は ${IP_SHOW_MS / 1000} 秒たつと、自動でまた隠れます。</p>`, "表示する"));
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-ipshow]");
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const w = b.closest("[data-ipv]");
+  if (!w) return;
+  if (w.dataset.on === "1") { ipHide(w); return; }
+  if (await confirmShowIp()) ipReveal(w);
+});
+// 数字だけのアドレスが入った入力欄を、隠す(見るときは確認)
+function secretAddrInput(input, btn) {
+  let t = null;
+  const hide = () => { clearTimeout(t); input.style.webkitTextSecurity = "disc"; input.dataset.secret = "1"; btn.textContent = "表示する"; };
+  const show = () => { input.style.webkitTextSecurity = ""; input.dataset.secret = "0"; btn.textContent = "隠す"; t = setTimeout(hide, IP_SHOW_MS); };
+  const sync = () => { if (isPublicIpLiteral(input.value.trim())) { btn.hidden = false; if (input.dataset.secret !== "0") hide(); } else { btn.hidden = true; clearTimeout(t); input.style.webkitTextSecurity = ""; input.dataset.secret = ""; } };
+  btn.onclick = async () => { if (input.dataset.secret === "0") { hide(); return; } if (await confirmShowIp()) show(); };
+  sync();
+  return sync;
+}
+
 function fail(e) {
   console.error(e);
   toast(e.message || String(e), "error", 7000);
@@ -1284,6 +1357,7 @@ function tabHome(body, s) {
           <input type="text" data-cmd placeholder="コマンドを入れて Enter（日本語で探せます。例: 天気）" aria-label="コマンド" autocomplete="off">
           <button class="btn" data-send>送る</button>
           ${cpBtn("", "ログをコピー", "ログ").replace('data-cp=""', "data-copylog")}
+          <button type="button" class="btn sm ghost" data-conip>ログのIPを表示</button>
         </div>
         <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap" data-quickrow></div>
       </div>
@@ -1293,7 +1367,7 @@ function tabHome(body, s) {
         <div class="panel"><h3>つながらなかった人 ${help("joinfail")}</h3><p class="muted small" style="margin:6px 0">入れなかった・切れた人と、その理由を、サーバーの記録から探します。</p>
           <button class="btn sm" data-joinfail>調べる</button><div data-joinfailout style="margin-top:8px"></div></div>
         <div class="panel"><h3>友達に伝えるアドレス</h3>
-          ${s.address ? `<div class="addr" style="margin:8px 0">${esc(s.address)}</div><button class="btn sm" data-copy>コピー</button> <button class="btn sm" data-card>招待カード</button>`
+          ${s.address ? `<div class="addr" style="margin:8px 0">${addrSecret(s.address)}</div>${isPublicIpLiteral(s.address) ? "" : `<button class="btn sm" data-copy>コピー</button> `} <button class="btn sm" data-card>招待カード</button>`
             : `<p class="muted small" style="margin:6px 0">まだ決まっていません。</p><button class="btn sm primary" data-topublic>友達を呼ぶ準備をする</button>`}
         </div>
         <div class="panel"><h3>メモリ ${help("memory")}</h3><p style="margin:6px 0">${gb(s.memory_mb)} を使っています</p><button class="linkbtn" data-tomem>変える</button></div>
@@ -1329,6 +1403,7 @@ function tabHome(body, s) {
   const cd = $("[data-card]", body);
   if (cd) cd.onclick = () => inviteCardFlow(s);
   $("[data-snd]", body).onchange = (e) => { setSound(e.target.checked); wakeAudio(); if (e.target.checked) beep("join"); };
+  $("[data-conip]", body).onclick = async () => { if (conIpOn) { conIpSet(false); return; } if (await confirmShowIp()) conIpSet(true); };
   $("[data-copylog]", body).onclick = () => copyText($$("div", con).map((d) => d.textContent).join("\n"), "ログ");
   bindCmdSuggest(cmd, () => (cur() ? cur().players || [] : []));
   api("commands_get", { id: s.id }).then((r) => setModCmds(r.mod)).catch(() => {});   // MODのコマンドも候補に出す
@@ -1338,6 +1413,7 @@ function tabHome(body, s) {
   if (tp) tp.onclick = () => { S.tab = "public"; viewServer($("#main")); };
   $("[data-tomem]", body).onclick = () => { S.tab = "settings"; viewServer($("#main")); };
   con.textContent = "";
+  conIpSet(false);
   S.consoleNext = 0;
   renderPlayers(s.players, s);
   pollConsole(true);
@@ -1374,6 +1450,22 @@ function renderPlayers(players, s) {
   }));
 }
 
+// ログの中の IP は、ふだんは隠す（「ログのIPを表示」で、確認してから30秒だけ見える）
+let conIpOn = false, conIpTimer = null;
+function conPaint(div, line) {
+  const m = maskIps(line);
+  if (m !== line) { div.dataset.raw = line; div.classList.add("hasip"); }
+  div.textContent = conIpOn && div.dataset.raw ? line : m;
+}
+function conIpSet(on) {
+  clearTimeout(conIpTimer);
+  conIpOn = on;
+  $$("[data-console] .hasip").forEach((d) => { d.textContent = on ? d.dataset.raw : maskIps(d.dataset.raw); });
+  const b = $("[data-conip]");
+  if (b) b.textContent = on ? "ログのIPを隠す" : "ログのIPを表示";
+  if (on) conIpTimer = setTimeout(() => conIpSet(false), IP_SHOW_MS);
+}
+
 let lastPlayers = "";
 async function pollConsole(reset) {
   const con = $("[data-console]");
@@ -1392,7 +1484,7 @@ async function pollConsole(reset) {
         else if (/WARN|⚠/.test(line)) div.className = "w";
         else if (/^(> |▶|■)/.test(line)) div.className = "me";
         else if (/^✅|Done \(/.test(line)) div.className = "ok";
-        div.textContent = line;
+        conPaint(div, line);
         frag.appendChild(div);
       }
       con.appendChild(frag);
@@ -2020,7 +2112,7 @@ async function tabPublic(body, s) {
       <h3>友達に伝えるアドレス</h3>
       ${p.port_mismatch ? `<div class="note warn" style="margin-top:8px"><b>アドレスのポート番号が、サーバーのポート番号（${p.port}）と違います</b>ポート番号を変えたときは、アドレスの後ろの「:番号」も変えてください（25565 なら書かなくてOK）。</div>` : ""}
       <div class="inline-field" style="margin-top:10px"><input type="text" data-addr value="${esc(p.address)}" placeholder="例: xxxx.joinmc.link　または　1.2.3.4:25565" style="font:700 18px var(--mono)">
-        <button class="btn primary" data-save>保存</button><button class="btn" data-copy>コピー</button></div>
+        <button class="btn" data-addrshow hidden>表示する</button><button class="btn primary" data-save>保存</button><button class="btn" data-copy>コピー</button></div>
       <p class="hint">保存したアドレスは友達用パックにも入り、友達のマイクラのサーバー一覧に最初から表示されます。</p>
       <div class="row" style="margin-top:10px"><button class="btn primary" data-reach>外から届くかテストする</button><button class="btn" data-ping>このPCからテスト</button><span data-pingout class="small"></span></div>
       <div data-reachout style="margin-top:10px"></div>
@@ -2031,7 +2123,10 @@ async function tabPublic(body, s) {
 
     <div class="sec panel" data-ddns></div>`;
   const addr = $("[data-addr]", body);
-  const save = async (v) => { addr.value = v; await api("set_address", { id: s.id, address: v }); toast("アドレスを保存しました"); refreshState(); renderInvite($("[data-invite]", body), s); };
+  const addrSync = secretAddrInput(addr, $("[data-addrshow]", body));   // 数字だけのアドレスは、隠す
+  addr.addEventListener("input", () => { addr.style.webkitTextSecurity = ""; addr.dataset.secret = "0"; });   // 打っているあいだは見える
+  addr.addEventListener("blur", () => addrSync());
+  const save = async (v) => { addr.value = v; addr.dataset.secret = ""; addrSync(); await api("set_address", { id: s.id, address: v }); toast("アドレスを保存しました"); refreshState(); renderInvite($("[data-invite]", body), s); };
   $("[data-save]", body).onclick = () => save(addr.value.trim()).catch(fail);
   renderNetDiag($("[data-netdiag]", body), s, save);
   $("[data-conndiag2]", body).onclick = () => openConnectDiag(s);
@@ -2046,7 +2141,7 @@ async function tabPublic(body, s) {
   };
   $("[data-upnp]", body).onclick = async (e) => {
     e.target.disabled = true; e.target.textContent = "ルーターを探しています…";
-    try { const r = await api("upnp_open", { id: s.id }); addr.value = r.address; toast("ポートを開けました: " + r.address); refreshState(); }
+    try { const r = await api("upnp_open", { id: s.id }); addr.value = r.address; addr.dataset.secret = ""; addrSync(); toast("ポートを開けました" + (isPublicIpLiteral(r.address) ? "（アドレスは入力欄に入れました）" : ": " + r.address)); refreshState(); }
     catch (err) { await info("自動ポート開放ができませんでした", `<p>${esc(err.message)}</p><p>playit.gg を使う方法がおすすめです。</p>`); }
     finally { e.target.disabled = false; e.target.textContent = "ポートを開ける"; }
   };
@@ -2054,7 +2149,7 @@ async function tabPublic(body, s) {
   $("[data-fw]", body).onclick = () => api("firewall", { id: s.id }).then(() => toast("登録しました")).catch(fail);
   $("[data-gip]", body).onclick = async () => {
     const out = $("[data-gipout]", body); out.textContent = "調べています…";
-    try { const r = await api("global_ip"); out.innerHTML = r.ip ? `<b class="kbd">${esc(r.ip)}${p.port !== 25565 ? ":" + p.port : ""}</b>` : "調べられませんでした"; } catch (e) { out.textContent = e.message; }
+    try { const r = await api("global_ip"); out.innerHTML = r.ip ? `<b class="kbd">${ipSecret(r.ip + (p.port !== 25565 ? ":" + p.port : ""))}</b>` : "調べられませんでした"; } catch (e) { out.textContent = e.message; }
   };
   $("[data-reach]", body).onclick = async (e) => {
     const out = $("[data-reachout]", body);
@@ -2062,7 +2157,7 @@ async function tabPublic(body, s) {
     try {
       const r = await api("reach_test", { id: s.id, address: addr.value.trim() || null });
       out.innerHTML = `<div class="note ${r.online ? "ok" : "error"}"><b>${r.online ? "✔ " : "✖ "}${esc(r.message)}</b>
-        <span class="small">${esc(r.address)}${r.online ? `　${esc(r.version || "")}・${r.players ?? "?"}/${r.max ?? "?"}人` : ""}</span>
+        <span class="small">${addrSecret(r.address)}${r.online ? `　${esc(r.version || "")}・${r.players ?? "?"}/${r.max ?? "?"}人` : ""}</span>
         ${r.hints.length ? `<ul class="small">${r.hints.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}</div>`;
     } catch (err) { out.innerHTML = `<div class="note warn">${esc(err.message)}</div>`; } finally { e.target.disabled = false; }
   };
@@ -2304,12 +2399,12 @@ async function renderIntrusions(el, s) {
   if (!d.items.length) { el.innerHTML = `<div class="note ok" style="margin-top:18px"><b>あやしいアクセスはありません</b>ホワイトリストにない人・BAN した人が入ろうとしたら、ここに出ます（Discord やデスクトップにも知らせられます：「設定」→「通知」）。</div>`; return; }
   el.innerHTML = `<div class="panel" style="margin-top:18px;box-shadow:inset 6px 0 0 #e0b23a,var(--block)"><div class="row"><h3 class="grow">🚨 あやしいアクセス（${d.items.length}件）</h3><button class="btn sm ghost" data-iclr>記録を消す</button></div>
     <table class="tbl" style="margin-top:8px"><thead><tr><th>だれ</th><th>IPアドレス</th><th>理由</th><th>回数</th><th>最後</th><th></th></tr></thead><tbody>
-    ${d.items.map((x, i) => `<tr><td><b>${esc(x.name || "（名前なし）")}</b> ${x.name ? cpBtn(x.name, "名前", "名前") : ""}</td><td class="small">${esc(x.ip || "?")} ${x.ip ? cpBtn(x.ip, "コピー", "IPアドレス") : ""}${d.banned_ips.includes(x.ip) ? ' <span class="badge ng">BAN中</span>' : ""}</td><td class="small">${esc(x.reason)}</td><td>${x.count}</td><td class="small">${esc(x.last_text)}</td>
+    ${d.items.map((x, i) => `<tr><td><b>${esc(x.name || "（名前なし）")}</b> ${x.name ? cpBtn(x.name, "名前", "名前") : ""}</td><td class="small">${x.ip ? ipSecret(x.ip) : "?"}${d.banned_ips.includes(x.ip) ? ' <span class="badge ng">BAN中</span>' : ""}</td><td class="small">${esc(x.reason)}</td><td>${x.count}</td><td class="small">${esc(x.last_text)}</td>
       <td style="text-align:right">${x.ip && !d.banned_ips.includes(x.ip) && !/^127\./.test(x.ip) ? `<button class="btn sm danger" data-iban="${esc(x.ip)}">IP BAN</button>` : ""}${x.name && x.kind === "rejected" ? `<button class="btn sm" data-iwl="${esc(x.name)}" title="知り合いだったら">名簿に入れる</button>` : ""}</td></tr>`).join("")}
     </tbody></table><p class="hint">IP BAN すると、その場所からはサーバーにつなげなくなります（このソフトの門番が断ります）。友達だったときは「名簿に入れる」を押します。</p></div>`;
   $("[data-iclr]", el).onclick = async () => { await api("intrusions_clear", { id: s.id }).catch(fail); renderIntrusions(el, s); };
   $$("[data-iban]", el).forEach((b) => (b.onclick = async () => {
-    if (!(await ask("IP BAN", `<p>${esc(b.dataset.iban)} からのアクセスを断りますか？</p>`, "BAN する", { danger: true }))) return;
+    if (!(await ask("IP BAN", `<p>選んだIPアドレスからのアクセスを断りますか？（IPアドレスは、表の「表示する」で確認できます）</p>`, "BAN する", { danger: true }))) return;
     try { await api("ban_add", { id: s.id, kind: "ip", target: b.dataset.iban, reason: "あやしいアクセス" }); toast("BAN しました"); renderIntrusions(el, s); } catch (e) { fail(e); }
   }));
   $$("[data-iwl]", el).forEach((b) => (b.onclick = async () => {
@@ -2686,7 +2781,7 @@ async function renderJoined(el) {
   if (!list.length || !el.isConnected) { el.innerHTML = ""; return; }
   el.innerHTML = `<h2 style="margin-bottom:12px">参加しているサーバー</h2>
     <div class="stack" style="margin-bottom:26px">${list.map((j) => `<div class="panel" data-j="${esc(j.key)}"><div class="row">
-      <div class="grow"><h3>${esc(j.name)}</h3><div class="small muted">マイクラ ${esc(j.mc || "?")}・パック ${esc(j.version || "?")}${j.address ? "・" + esc(j.address) : ""}</div>
+      <div class="grow"><h3>${esc(j.name)}</h3><div class="small muted">マイクラ ${esc(j.mc || "?")}・パック ${esc(j.version || "?")}${j.address ? "・" + addrSecret(j.address, { copy: false }) : ""}</div>
         <div class="small" data-jst style="margin-top:4px"><span class="muted">新しいパックがないか確かめています…</span></div><div data-jch></div></div>
       <button class="btn go big" data-play>▶ 遊ぶ</button><button class="btn primary" data-upd hidden>今すぐ更新</button>
       <button class="btn ghost sm" data-rm>一覧から消す</button></div></div>`).join("")}</div>`;
